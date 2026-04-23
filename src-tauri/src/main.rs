@@ -3,6 +3,7 @@
 mod clipboard;
 mod config;
 mod error;
+mod ipc;
 mod op_cli;
 mod vault;
 
