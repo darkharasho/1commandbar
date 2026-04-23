@@ -98,6 +98,90 @@ impl OpRunner for FakeRunner {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ItemSummary {
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub category: String,
+    #[serde(default)]
+    pub vault: VaultRef,
+    #[serde(default)]
+    pub urls: Vec<Url>,
+    #[serde(default, rename = "additional_information")]
+    pub additional_information: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct VaultRef {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Url {
+    pub href: String,
+    #[serde(default)]
+    pub primary: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ItemDetail {
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub category: String,
+    #[serde(default)]
+    pub vault: VaultRef,
+    #[serde(default)]
+    pub urls: Vec<Url>,
+    #[serde(default)]
+    pub fields: Vec<Field>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Field {
+    pub id: String,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default, rename = "type")]
+    pub field_type: String,
+    #[serde(default)]
+    pub purpose: String,
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub totp: Option<String>,
+}
+
+pub async fn list_items(runner: &dyn OpRunner) -> AppResult<Vec<ItemSummary>> {
+    let raw = runner
+        .run(&["item", "list", "--categories", "Login", "--format", "json"])
+        .await?;
+    let items: Vec<ItemSummary> = serde_json::from_str(&raw)?;
+    Ok(items)
+}
+
+pub async fn get_item(runner: &dyn OpRunner, id: &str) -> AppResult<ItemDetail> {
+    let raw = runner
+        .run(&["item", "get", id, "--format", "json"])
+        .await?;
+    let item: ItemDetail = serde_json::from_str(&raw)?;
+    Ok(item)
+}
+
+pub fn find_field<'a>(item: &'a ItemDetail, purpose: &str) -> Option<&'a Field> {
+    item.fields.iter().find(|f| f.purpose.eq_ignore_ascii_case(purpose))
+}
+
+pub fn find_totp<'a>(item: &'a ItemDetail) -> Option<&'a Field> {
+    item.fields
+        .iter()
+        .find(|f| f.field_type.eq_ignore_ascii_case("OTP") && f.totp.is_some())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,5 +202,49 @@ mod tests {
     async fn not_signed_in_on_err() {
         let runner = FakeRunner::new(vec![Err(AppError::OpNotSignedIn)]);
         assert_eq!(detect_auth(&runner).await, AuthMode::NotSignedIn);
+    }
+
+    const SAMPLE_LIST: &str = r#"[
+      {"id":"abc","title":"GitHub","category":"LOGIN","vault":{"id":"v1","name":"Personal"},"urls":[{"href":"https://github.com","primary":true}],"additional_information":"octocat"},
+      {"id":"xyz","title":"Gmail","category":"LOGIN","vault":{"id":"v1","name":"Personal"},"urls":[{"href":"https://mail.google.com","primary":true}],"additional_information":"me@gmail.com"}
+    ]"#;
+
+    #[tokio::test]
+    async fn list_items_parses() {
+        let runner = FakeRunner::new(vec![Ok(SAMPLE_LIST.into())]);
+        let items = list_items(&runner).await.unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].title, "GitHub");
+        assert_eq!(items[0].vault.name, "Personal");
+        assert_eq!(items[0].urls[0].href, "https://github.com");
+        let calls = runner.calls.lock().unwrap();
+        assert_eq!(calls[0], vec!["item", "list", "--categories", "Login", "--format", "json"]);
+    }
+
+    const SAMPLE_GET: &str = r#"{
+      "id":"abc","title":"GitHub","category":"LOGIN","vault":{"id":"v1","name":"Personal"},
+      "urls":[{"href":"https://github.com","primary":true}],
+      "fields":[
+        {"id":"username","label":"username","type":"STRING","purpose":"USERNAME","value":"octocat"},
+        {"id":"password","label":"password","type":"CONCEALED","purpose":"PASSWORD","value":"hunter2"},
+        {"id":"one-time password","label":"one-time password","type":"OTP","purpose":"","totp":"123456"}
+      ]
+    }"#;
+
+    #[tokio::test]
+    async fn get_item_parses_fields() {
+        let runner = FakeRunner::new(vec![Ok(SAMPLE_GET.into())]);
+        let item = get_item(&runner, "abc").await.unwrap();
+        assert_eq!(item.fields.len(), 3);
+        assert_eq!(find_field(&item, "USERNAME").unwrap().value.as_deref(), Some("octocat"));
+        assert_eq!(find_field(&item, "PASSWORD").unwrap().value.as_deref(), Some("hunter2"));
+        assert_eq!(find_totp(&item).unwrap().totp.as_deref(), Some("123456"));
+    }
+
+    #[tokio::test]
+    async fn op_failed_propagates_stderr() {
+        let runner = FakeRunner::new(vec![Err(AppError::OpFailed("boom".into()))]);
+        let err = list_items(&runner).await.unwrap_err();
+        assert!(matches!(err, AppError::OpFailed(_)));
     }
 }
