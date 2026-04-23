@@ -16,4 +16,5 @@ export interface AppConfig {
   vault_filter: string[];
   recents_max: number;
   cache_ttl_secs: number;
+  onboarded: boolean;
 }

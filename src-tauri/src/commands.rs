@@ -113,6 +113,16 @@ pub async fn get_config(state: tauri::State<'_, AppState>) -> AppResult<Config> 
 }
 
 #[tauri::command]
+pub async fn mark_onboarded(state: tauri::State<'_, AppState>) -> AppResult<()> {
+    let mut cfg = state.config.lock().unwrap();
+    cfg.onboarded = true;
+    let path = Config::default_path();
+    cfg.save_to(&path)
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn signin(password: String, state: tauri::State<'_, AppState>) -> AppResult<()> {
     let _ = password; // v1: delegate to op's interactive prompt via session-token flow in a later pass
     let _ = state;

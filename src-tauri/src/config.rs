@@ -11,6 +11,7 @@ pub struct Config {
     pub vault_filter: Vec<String>,
     pub recents_max: usize,
     pub cache_ttl_secs: u64,
+    pub onboarded: bool,
 }
 
 impl Default for Config {
@@ -21,6 +22,7 @@ impl Default for Config {
             vault_filter: Vec::new(),
             recents_max: 10,
             cache_ttl_secs: 300,
+            onboarded: false,
         }
     }
 }
@@ -89,6 +91,7 @@ mod tests {
         let cfg = Config::load_from(&path).unwrap();
         assert_eq!(cfg.clipboard_timeout_secs, 10);
         assert_eq!(cfg.hotkey, "Alt+Shift+Space");
+        assert!(!cfg.onboarded);
     }
 
     #[test]

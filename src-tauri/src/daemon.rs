@@ -48,6 +48,7 @@ pub fn run() {
             commands::open_url,
             commands::hide_window,
             commands::get_config,
+            commands::mark_onboarded,
             commands::signin,
         ])
         .run(tauri::generate_context!())

@@ -4,6 +4,7 @@ import SearchBar from "./components/SearchBar";
 import ResultsList from "./components/ResultsList";
 import ActionMenu, { type ActionKey } from "./components/ActionMenu";
 import Toast from "./components/Toast";
+import Onboarding from "./components/Onboarding";
 import { api } from "./hooks/useTauri";
 import type { AppConfig, SearchResult } from "./types";
 
@@ -14,6 +15,12 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string; secs: number } | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    if (config && !config.onboarded) {
+      setShowOnboarding(true);
+    }
+  }, [config]);
 
   useEffect(() => { api.getConfig().then(setConfig).catch(() => {}); }, []);
 
@@ -83,6 +90,7 @@ export default function App() {
       <ResultsList items={items} selectedIndex={selected} onSelectedChange={setSelected} />
       {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
       {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
+      {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
     </div>
   );
 }
