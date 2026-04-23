@@ -102,7 +102,8 @@ export default function App() {
   return (
     <div
       key={settingsOpen ? "settings" : "main"}
-      className="relative h-screen w-screen rounded-xl overflow-hidden border border-white/10 bg-bar-bg backdrop-blur shadow-2xl"
+      className="relative h-screen w-screen overflow-hidden shadow-2xl"
+      style={{ backgroundColor: "#14161c" }}
     >
       {settingsOpen ? (
         <SettingsPanel onClose={() => setSettingsOpen(false)} />

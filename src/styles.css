@@ -3,4 +3,4 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; margin: 0; }
-body { background: transparent; color: #e8eaed; font-family: "Inter", system-ui, sans-serif; }
+body { background: #14161c; color: #e8eaed; font-family: "Inter", system-ui, sans-serif; }
