@@ -89,12 +89,17 @@ export default function App() {
 
   return (
     <div className="relative h-screen w-screen rounded-xl overflow-hidden border border-white/10 bg-bar-bg backdrop-blur shadow-2xl">
-      <SearchBar onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
-      <ResultsList items={items} selectedIndex={selected} onSelectedChange={setSelected} />
-      {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
-      {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
-      {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
+      {settingsOpen ? (
+        <SettingsPanel onClose={() => setSettingsOpen(false)} />
+      ) : (
+        <>
+          <SearchBar onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
+          <ResultsList items={items} selectedIndex={selected} onSelectedChange={setSelected} />
+          {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
+          {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
+          {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
+        </>
+      )}
     </div>
   );
 }

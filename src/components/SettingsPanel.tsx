@@ -37,11 +37,7 @@ export default function SettingsPanel({ onClose }: Props) {
 
   return (
     <div
-      className="absolute inset-0 p-6 text-sm overflow-y-auto"
-      style={{ backgroundColor: "#0e1117" }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className="h-full w-full p-6 text-sm overflow-y-auto"
     >
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Settings</h2>
