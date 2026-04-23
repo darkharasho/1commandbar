@@ -45,16 +45,18 @@ pub fn run() {
 
             // Pre-warm the webview on Wayland: the first show() after launch
             // can render the content too transparent because the webkit
-            // compositor hasn't fully painted yet. Briefly show+hide the
-            // window once so the first user-triggered show is effectively
-            // the "second" show and renders correctly.
+            // compositor hasn't fully painted yet. Move the window offscreen,
+            // show it briefly to force a paint, then hide and recenter. Users
+            // never see the warm-up pass.
             let warmup_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                 if let Some(w) = warmup_handle.get_webview_window("bar") {
+                    let _ = w.set_position(tauri::PhysicalPosition { x: -9999, y: -9999 });
                     let _ = w.show();
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
                     let _ = w.hide();
+                    let _ = w.center();
                 }
             });
 
