@@ -3,6 +3,7 @@
 mod config;
 mod error;
 mod op_cli;
+mod vault;
 
 fn main() {
     tauri::Builder::default()
