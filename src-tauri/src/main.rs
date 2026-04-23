@@ -2,6 +2,7 @@
 
 mod config;
 mod error;
+mod op_cli;
 
 fn main() {
     tauri::Builder::default()
