@@ -123,6 +123,30 @@ pub async fn mark_onboarded(state: tauri::State<'_, AppState>) -> AppResult<()> 
 }
 
 #[tauri::command]
+pub async fn get_autostart_enabled(app: tauri::AppHandle) -> AppResult<bool> {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch()
+        .is_enabled()
+        .map_err(|e| AppError::Other(e.to_string()))
+}
+
+#[tauri::command]
+pub async fn set_autostart_enabled(app: tauri::AppHandle, enabled: bool) -> AppResult<()> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    if enabled {
+        manager
+            .enable()
+            .map_err(|e| AppError::Other(e.to_string()))?;
+    } else {
+        manager
+            .disable()
+            .map_err(|e| AppError::Other(e.to_string()))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn signin(password: String, state: tauri::State<'_, AppState>) -> AppResult<()> {
     let _ = password; // v1: delegate to op's interactive prompt via session-token flow in a later pass
     let _ = state;

@@ -5,6 +5,7 @@ import ResultsList from "./components/ResultsList";
 import ActionMenu, { type ActionKey } from "./components/ActionMenu";
 import Toast from "./components/Toast";
 import Onboarding from "./components/Onboarding";
+import SettingsPanel from "./components/SettingsPanel";
 import { api } from "./hooks/useTauri";
 import type { AppConfig, SearchResult } from "./types";
 
@@ -16,6 +17,7 @@ export default function App() {
   const [toast, setToast] = useState<{ msg: string; secs: number } | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     if (config && !config.onboarded) {
       setShowOnboarding(true);
@@ -69,6 +71,7 @@ export default function App() {
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      if (settingsOpen) return;
       if (e.key === "Escape") { api.hideWindow().catch(() => {}); return; }
       if (e.key === "Enter" && !menuOpen) {
         e.preventDefault();
@@ -82,14 +85,15 @@ export default function App() {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [menuOpen, runAction]);
+  }, [menuOpen, runAction, settingsOpen]);
 
   return (
     <div className="relative h-screen w-screen rounded-xl overflow-hidden border border-white/10 bg-bar-bg backdrop-blur shadow-2xl">
-      <SearchBar onQueryChange={setQuery} />
+      <SearchBar onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
       <ResultsList items={items} selectedIndex={selected} onSelectedChange={setSelected} />
       {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
       {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
     </div>
   );

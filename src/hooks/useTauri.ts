@@ -12,4 +12,7 @@ export const api = {
   openUrl: (url: string) => invoke<void>("open_url", { url }),
   hideWindow: () => invoke<void>("hide_window"),
   getConfig: () => invoke<AppConfig>("get_config"),
+  getAutostartEnabled: () => invoke<boolean>("get_autostart_enabled"),
+  setAutostartEnabled: (enabled: boolean) =>
+    invoke<void>("set_autostart_enabled", { enabled }),
 };

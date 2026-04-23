@@ -9,7 +9,7 @@ describe("SearchBar", () => {
   it("debounces onQueryChange", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const onChange = vi.fn();
-    render(<SearchBar onQueryChange={onChange} />);
+    render(<SearchBar onQueryChange={onChange} onOpenSettings={() => {}} />);
     const input = screen.getByPlaceholderText("Search 1Password…");
     await user.type(input, "git");
     expect(onChange).not.toHaveBeenCalledWith("git");
