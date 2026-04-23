@@ -7,6 +7,9 @@ use crate::op_cli::SystemOpRunner;
 use crate::vault::Vault;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use tauri::image::Image;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, WindowEvent};
 
 pub fn run() {
@@ -44,6 +47,36 @@ pub fn run() {
                     }
                 });
             }
+
+            // System tray icon with Show/Quit menu.
+            let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+            let tray_icon_bytes = include_bytes!("../icons/tray.png");
+            let tray_image = Image::from_bytes(tray_icon_bytes)?;
+
+            let tray_click_handle = app.handle().clone();
+            let _tray = TrayIconBuilder::new()
+                .icon(tray_image)
+                .tooltip("1commandbar")
+                .menu(&tray_menu)
+                .on_menu_event(|app_handle, event| match event.id.as_ref() {
+                    "show" => hotkey::toggle_window(app_handle),
+                    "quit" => app_handle.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(move |_tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        hotkey::toggle_window(&tray_click_handle);
+                    }
+                })
+                .build(app)?;
 
             // Spawn IPC listener
             let handle = app.handle().clone();
