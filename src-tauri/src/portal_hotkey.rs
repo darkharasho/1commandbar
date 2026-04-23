@@ -27,26 +27,47 @@ pub async fn run(app: AppHandle) {
         }
     };
 
-    let shortcuts =
-        [NewShortcut::new("toggle", "Toggle 1commandbar")
-            .preferred_trigger(Some("ALT+SHIFT+space"))];
-
-    match proxy.bind_shortcuts(&session, &shortcuts, None).await {
+    // Check if "toggle" is already bound from a previous session. The portal
+    // persists bindings per app-id, so re-binding would re-prompt the user.
+    let already_bound = match proxy.list_shortcuts(&session).await {
         Ok(request) => match request.response() {
-            Ok(resp) => {
-                tracing::info!(
-                    "portal GlobalShortcuts bound {} shortcut(s)",
-                    resp.shortcuts().len()
-                );
-            }
+            Ok(resp) => resp.shortcuts().iter().any(|s| s.id() == "toggle"),
             Err(e) => {
-                tracing::warn!("bind_shortcuts response error: {e}");
-                return;
+                tracing::warn!("list_shortcuts response error, will attempt bind: {e}");
+                false
             }
         },
         Err(e) => {
-            tracing::warn!("bind_shortcuts failed: {e}");
-            return;
+            tracing::warn!(
+                "list_shortcuts failed (portal may not support it), will attempt bind: {e}"
+            );
+            false
+        }
+    };
+
+    if already_bound {
+        tracing::info!("portal GlobalShortcuts: \"toggle\" already bound, skipping bind_shortcuts");
+    } else {
+        let shortcuts = [NewShortcut::new("toggle", "Toggle 1commandbar")
+            .preferred_trigger(Some("ALT+SHIFT+space"))];
+
+        match proxy.bind_shortcuts(&session, &shortcuts, None).await {
+            Ok(request) => match request.response() {
+                Ok(resp) => {
+                    tracing::info!(
+                        "portal GlobalShortcuts bound {} shortcut(s)",
+                        resp.shortcuts().len()
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!("bind_shortcuts response error: {e}");
+                    return;
+                }
+            },
+            Err(e) => {
+                tracing::warn!("bind_shortcuts failed: {e}");
+                return;
+            }
         }
     }
 
