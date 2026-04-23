@@ -8,6 +8,7 @@ mod error;
 mod hotkey;
 mod ipc;
 mod op_cli;
+mod portal_hotkey;
 mod vault;
 
 fn main() {

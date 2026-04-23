@@ -37,6 +37,12 @@ pub fn run() {
                 run_ipc_listener(handle).await;
             });
 
+            // Spawn XDG Desktop Portal GlobalShortcuts listener (Wayland path).
+            let handle2 = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                crate::portal_hotkey::run(handle2).await;
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
