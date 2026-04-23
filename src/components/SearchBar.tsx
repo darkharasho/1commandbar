@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
 
@@ -13,7 +14,7 @@ export default function SearchBar({ onQueryChange }: Props) {
 
   return (
     <div className="flex items-center gap-3 px-4 h-12 border-b border-white/10">
-      <span aria-hidden className="text-white/50">🔍</span>
+      <Search size={16} className="stroke-white/50 shrink-0" aria-hidden />
       <input
         autoFocus
         value={value}
