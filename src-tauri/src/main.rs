@@ -35,7 +35,8 @@ fn main() {
         "" => {
             // No args: try to send toggle to an existing instance; else start daemon.
             let path = ipc::socket_path();
-            let existed = tauri::async_runtime::block_on(ipc::try_send(&path, ipc::Command::Toggle));
+            let existed =
+                tauri::async_runtime::block_on(ipc::try_send(&path, ipc::Command::Toggle));
             if existed {
                 return;
             }

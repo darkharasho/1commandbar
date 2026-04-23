@@ -29,7 +29,7 @@ pub fn run() {
             };
             app.manage(state);
 
-            hotkey::register(&app.handle(), &hotkey_str).ok();
+            hotkey::register(app.handle(), &hotkey_str).ok();
 
             // Spawn IPC listener
             let handle = app.handle().clone();
@@ -67,7 +67,9 @@ async fn run_ipc_listener(app: AppHandle) {
         match listener.accept_command().await {
             Ok(Command::Toggle) | Ok(Command::Show) => hotkey::toggle_window(&app),
             Ok(Command::Hide) => {
-                if let Some(w) = app.get_webview_window("bar") { let _ = w.hide(); }
+                if let Some(w) = app.get_webview_window("bar") {
+                    let _ = w.hide();
+                }
             }
             Ok(Command::Quit) => app.exit(0),
             Ok(Command::Unknown(s)) => tracing::warn!("unknown ipc command: {s}"),

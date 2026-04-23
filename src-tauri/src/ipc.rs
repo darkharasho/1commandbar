@@ -6,7 +6,7 @@ use tokio::net::{UnixListener, UnixStream};
 pub fn socket_path() -> PathBuf {
     std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir())
+        .unwrap_or_else(std::env::temp_dir)
         .join("1commandbar.sock")
 }
 

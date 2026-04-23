@@ -1,6 +1,9 @@
+#![allow(dead_code)]
+
 use crate::error::{AppError, AppResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use std::sync::{Arc, Mutex};
 
 #[async_trait]
@@ -59,7 +62,9 @@ pub async fn detect_auth(runner: &dyn OpRunner) -> AuthMode {
         Ok(json) => {
             let parsed: Result<WhoAmI, _> = serde_json::from_str(&json);
             match parsed {
-                Ok(w) if w.integration_type.as_deref() == Some("Desktop App") => AuthMode::DesktopIntegration,
+                Ok(w) if w.integration_type.as_deref() == Some("Desktop App") => {
+                    AuthMode::DesktopIntegration
+                }
                 Ok(_) => AuthMode::SessionToken,
                 Err(_) => AuthMode::SessionToken,
             }
@@ -89,7 +94,10 @@ impl FakeRunner {
 #[async_trait]
 impl OpRunner for FakeRunner {
     async fn run(&self, args: &[&str]) -> AppResult<String> {
-        self.calls.lock().unwrap().push(args.iter().map(|s| s.to_string()).collect());
+        self.calls
+            .lock()
+            .unwrap()
+            .push(args.iter().map(|s| s.to_string()).collect());
         let mut r = self.responses.lock().unwrap();
         if r.is_empty() {
             return Err(AppError::Other("no fake response queued".into()));
@@ -165,18 +173,18 @@ pub async fn list_items(runner: &dyn OpRunner) -> AppResult<Vec<ItemSummary>> {
 }
 
 pub async fn get_item(runner: &dyn OpRunner, id: &str) -> AppResult<ItemDetail> {
-    let raw = runner
-        .run(&["item", "get", id, "--format", "json"])
-        .await?;
+    let raw = runner.run(&["item", "get", id, "--format", "json"]).await?;
     let item: ItemDetail = serde_json::from_str(&raw)?;
     Ok(item)
 }
 
 pub fn find_field<'a>(item: &'a ItemDetail, purpose: &str) -> Option<&'a Field> {
-    item.fields.iter().find(|f| f.purpose.eq_ignore_ascii_case(purpose))
+    item.fields
+        .iter()
+        .find(|f| f.purpose.eq_ignore_ascii_case(purpose))
 }
 
-pub fn find_totp<'a>(item: &'a ItemDetail) -> Option<&'a Field> {
+pub fn find_totp(item: &ItemDetail) -> Option<&Field> {
     item.fields
         .iter()
         .find(|f| f.field_type.eq_ignore_ascii_case("OTP") && f.totp.is_some())
@@ -194,7 +202,9 @@ mod tests {
 
     #[tokio::test]
     async fn session_token_when_no_integration() {
-        let runner = FakeRunner::new(vec![Ok(r#"{"URL":"https://my.1password.com","AccountUUID":"a","UserUUID":"u"}"#.to_string())]);
+        let runner = FakeRunner::new(vec![Ok(
+            r#"{"URL":"https://my.1password.com","AccountUUID":"a","UserUUID":"u"}"#.to_string(),
+        )]);
         assert_eq!(detect_auth(&runner).await, AuthMode::SessionToken);
     }
 
@@ -218,7 +228,10 @@ mod tests {
         assert_eq!(items[0].vault.name, "Personal");
         assert_eq!(items[0].urls[0].href, "https://github.com");
         let calls = runner.calls.lock().unwrap();
-        assert_eq!(calls[0], vec!["item", "list", "--categories", "Login", "--format", "json"]);
+        assert_eq!(
+            calls[0],
+            vec!["item", "list", "--categories", "Login", "--format", "json"]
+        );
     }
 
     const SAMPLE_GET: &str = r#"{
@@ -236,8 +249,14 @@ mod tests {
         let runner = FakeRunner::new(vec![Ok(SAMPLE_GET.into())]);
         let item = get_item(&runner, "abc").await.unwrap();
         assert_eq!(item.fields.len(), 3);
-        assert_eq!(find_field(&item, "USERNAME").unwrap().value.as_deref(), Some("octocat"));
-        assert_eq!(find_field(&item, "PASSWORD").unwrap().value.as_deref(), Some("hunter2"));
+        assert_eq!(
+            find_field(&item, "USERNAME").unwrap().value.as_deref(),
+            Some("octocat")
+        );
+        assert_eq!(
+            find_field(&item, "PASSWORD").unwrap().value.as_deref(),
+            Some("hunter2")
+        );
         assert_eq!(find_totp(&item).unwrap().totp.as_deref(), Some("123456"));
     }
 

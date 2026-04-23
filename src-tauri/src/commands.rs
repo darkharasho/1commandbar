@@ -19,11 +19,16 @@ fn push_recent(recents: &Mutex<VecDeque<String>>, max: usize, id: &str) {
     let mut q = recents.lock().unwrap();
     q.retain(|x| x != id);
     q.push_front(id.to_string());
-    while q.len() > max { q.pop_back(); }
+    while q.len() > max {
+        q.pop_back();
+    }
 }
 
 #[tauri::command]
-pub async fn search(query: String, state: tauri::State<'_, AppState>) -> AppResult<Vec<SearchResult>> {
+pub async fn search(
+    query: String,
+    state: tauri::State<'_, AppState>,
+) -> AppResult<Vec<SearchResult>> {
     let ttl = Duration::from_secs(state.config.lock().unwrap().cache_ttl_secs);
     if state.vault.is_stale(ttl) {
         state.vault.refresh(&*state.runner).await?;
@@ -77,7 +82,10 @@ pub async fn copy_field(
 }
 
 #[tauri::command]
-pub async fn open_in_1password(item_id: String, state: tauri::State<'_, AppState>) -> AppResult<()> {
+pub async fn open_in_1password(
+    item_id: String,
+    state: tauri::State<'_, AppState>,
+) -> AppResult<()> {
     let item = op_cli::get_item(&*state.runner, &item_id).await?;
     let uri = format!(
         "onepassword://view-item/?a={}&v={}&i={}",
@@ -108,7 +116,9 @@ pub async fn get_config(state: tauri::State<'_, AppState>) -> AppResult<Config> 
 pub async fn signin(password: String, state: tauri::State<'_, AppState>) -> AppResult<()> {
     let _ = password; // v1: delegate to op's interactive prompt via session-token flow in a later pass
     let _ = state;
-    Err(AppError::Other("interactive signin not implemented in v1".into()))
+    Err(AppError::Other(
+        "interactive signin not implemented in v1".into(),
+    ))
 }
 
 #[cfg(test)]
