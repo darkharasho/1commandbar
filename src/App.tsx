@@ -204,7 +204,10 @@ export default function App() {
   return (
     <div
       key={settingsOpen ? "settings" : "main"}
-      className="relative h-screen w-screen overflow-hidden shadow-2xl"
+      className={
+        "relative h-screen w-screen overflow-hidden shadow-2xl " +
+        (view.kind === "search" && !settingsOpen ? "flex flex-col justify-center" : "")
+      }
       style={{ backgroundColor: "#1e1e1e" }}
     >
       {settingsOpen ? (
@@ -222,22 +225,20 @@ export default function App() {
           {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
         </>
       ) : (
-        <div className={view.kind === "search" ? "h-full flex items-center" : undefined}>
-          <div className="w-full">
-            <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
-            {view.kind === "list" && (
-              <ResultsList
-                items={items}
-                selectedIndex={selected}
-                onSelectedChange={setSelected}
-                onItemClick={enterDetail}
-              />
-            )}
-          </div>
+        <>
+          <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
+          {view.kind === "list" && (
+            <ResultsList
+              items={items}
+              selectedIndex={selected}
+              onSelectedChange={setSelected}
+              onItemClick={enterDetail}
+            />
+          )}
           {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
           {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
           {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
-        </div>
+        </>
       )}
     </div>
   );
