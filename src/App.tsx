@@ -218,14 +218,14 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
 
   return (
     <div
-      className="relative h-screen w-screen overflow-hidden flex flex-col justify-center"
+      className="relative h-screen w-screen overflow-hidden flex flex-col"
       style={{ backgroundColor: "transparent" }}
     >
       <div
         className={
           "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border overflow-hidden flex flex-col " +
-          "transition-[max-height] duration-200 ease-in-out " +
-          (view.kind === "search" && !settingsOpen ? "max-h-[58px]" : "max-h-[360px]")
+          "transition-[height] duration-200 ease-in-out " +
+          (view.kind === "search" && !settingsOpen ? "h-[58px]" : "h-[360px]")
         }
       >
         {settingsOpen ? (
@@ -250,7 +250,7 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
                 {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
               </div>
             ) : (
-              <div className="flex-1 min-h-[80px] overflow-hidden relative">
+              <div className="flex-1 min-h-0 overflow-hidden relative">
                 {view.kind === "list" && (
                   <ResultsList
                     items={items}
