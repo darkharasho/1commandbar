@@ -13,8 +13,6 @@ export default function ResultsList({ items, selectedIndex, onSelectedChange, on
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
     const handler = (e: KeyboardEvent) => {
       if (items.length === 0) return;
       if (e.key === "ArrowDown") {
@@ -25,8 +23,8 @@ export default function ResultsList({ items, selectedIndex, onSelectedChange, on
         onSelectedChange((selectedIndex - 1 + items.length) % items.length);
       }
     };
-    el.addEventListener("keydown", handler);
-    return () => el.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [items, selectedIndex, onSelectedChange]);
 
   return (
