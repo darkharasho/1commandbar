@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 
 pub fn run() {
     tauri::Builder::default()
@@ -22,6 +22,14 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            tracing::info!(
+                "daemon env: GDK_BACKEND={:?} DISPLAY={:?} WAYLAND_DISPLAY={:?} WEBKIT_DISABLE_DMABUF_RENDERER={:?}",
+                std::env::var("GDK_BACKEND").unwrap_or("(unset)".into()),
+                std::env::var("DISPLAY").unwrap_or("(unset)".into()),
+                std::env::var("WAYLAND_DISPLAY").unwrap_or("(unset)".into()),
+                std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").unwrap_or("(unset)".into()),
+            );
+
             // Ensure the app icon is present in the system icon theme so the
             // app launcher / portal / taskbar shows the correct icon even after
             // an in-app update (the updater replaces $APPIMAGE in-place but
@@ -53,11 +61,24 @@ pub fn run() {
                 let hide_target = w.clone();
                 w.on_window_event(move |event| match event {
                     WindowEvent::Focused(true) => {
+                        use std::time::{SystemTime, UNIX_EPOCH};
+                        let now_ms = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis() as u64;
+                        crate::hotkey::LAST_FOCUS_TRUE_MS
+                            .store(now_ms, std::sync::atomic::Ordering::SeqCst);
                         crate::hotkey::GOT_FOCUS_AFTER_SHOW
                             .store(true, std::sync::atomic::Ordering::SeqCst);
+                        tracing::info!("Focused(true)");
+                        let _ = hide_target.emit("window-focused", ());
                     }
                     WindowEvent::Focused(false) => {
-                        if !crate::hotkey::is_stale_focus_loss() {
+                        let stale = crate::hotkey::is_stale_focus_loss();
+                        tracing::info!("Focused(false) stale={stale}");
+                        if !stale {
+                            crate::hotkey::IS_SHOWN
+                                .store(false, std::sync::atomic::Ordering::SeqCst);
                             let _ = hide_target.hide();
                         }
                     }

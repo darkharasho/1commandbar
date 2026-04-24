@@ -28,18 +28,27 @@ const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
     },
   }), []);
 
-  // Re-focus the input every time the window is shown. Without this, after
-  // Wayland hides/reshows the window the webview keeps DOM focus on nothing
-  // and typed input routes to whichever app had OS focus before.
-  // 150ms: set_focus() is called 50ms after show(), then we need another
-  // ~100ms for KWin to activate the window before the input can take focus.
+  // Focus when Tauri fires Focused(true) — this maps 1:1 to GTK's focus-in-event
+  // from wl_keyboard.enter, so document.hasFocus() is guaranteed true and
+  // element.focus() will actually succeed (unlike timers or DOM window.focus
+  // which fire before/without OS keyboard focus being granted).
   useEffect(() => {
-    const focus = () => {
+    const unlisten = listen("window-focused", () => {
+      console.log("[1cb] window-focused → focusing input");
+      inputRef.current?.focus();
+    }).catch(() => () => {});
+    return () => { unlisten.then((f) => f()); };
+  }, []);
+
+  // Clear the input and focus on show. The 150ms timeout is a fallback for
+  // compositors that don't reliably fire the window focus event.
+  useEffect(() => {
+    const onShown = () => {
       setValue("");
       setTimeout(() => inputRef.current?.focus(), 150);
     };
-    focus();
-    const unlisten = listen("window-shown", focus).catch(() => () => {});
+    onShown();
+    const unlisten = listen("window-shown", onShown).catch(() => () => {});
     return () => { unlisten.then((f) => f()); };
   }, []);
 

@@ -27,10 +27,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [view, setView] = useState<View>({ kind: "search" });
   const searchBarRef = useRef<SearchBarHandle>(null);
-  // Suppresses the blur-based auto-hide for a short window after the bar is
-  // shown. Without this, the OS focus handoff during show triggers a spurious
-  // blur event that immediately re-hides the window before the user sees it.
-  const justShownRef = useRef(false);
 
   useEffect(() => {
     if (config && !config.onboarded) {
@@ -51,9 +47,7 @@ export default function App() {
 
   useEffect(() => {
     const unlisten = listen("window-shown", () => {
-      justShownRef.current = true;
-      setTimeout(() => { justShownRef.current = false; }, 300);
-
+      console.log("[1cb] window-shown");
       setQuery("");
       setItems([]);
       setSelected(0);
@@ -63,24 +57,13 @@ export default function App() {
       searchBarRef.current?.focus();
       // Pre-warm the vault so first search is instant and auth errors surface immediately.
       // Do NOT clear opError here — let refreshCache clear it on success only.
-      // Clearing it on every show resets autoSigninRef, causing repeated signin calls.
       api.refreshCache()
-        .then(() => setOpError(null))
-        .catch((e) => setOpError(String(e)));
+        .then(() => { console.log("[1cb] refreshCache ok"); setOpError(null); })
+        .catch((e) => { console.log("[1cb] refreshCache err:", String(e)); setOpError(String(e)); });
     });
     return () => { unlisten.then((f) => f()); };
   }, []);
 
-  // Auto-hide when the bar loses focus (click outside). Guarded against
-  // spurious blur events that fire during the OS focus handoff on show.
-  useEffect(() => {
-    const onBlur = () => {
-      if (justShownRef.current) return;
-      api.hideWindow().catch(() => {});
-    };
-    window.addEventListener("blur", onBlur);
-    return () => window.removeEventListener("blur", onBlur);
-  }, []);
 
   useEffect(() => {
     if (query === "") {
@@ -109,14 +92,19 @@ export default function App() {
   // unlock it. `op signin` via socket is unreliable when 1Password is locked
   // (connection reset), but opening the URL scheme always works — the OS
   // hands off to 1Password which shows its unlock UI.
-  const autoSigninRef = useRef(false);
+  // Cooldown prevents re-triggering when opError briefly clears (poll succeeds)
+  // then re-appears on the next window-show, which would open 1Password again.
+  const lastAutoSigninMsRef = useRef(0);
   useEffect(() => {
-    if (opError && !autoSigninRef.current) {
-      autoSigninRef.current = true;
-      api.openUrl("onepassword://").catch(() => {});
-    }
-    if (!opError) {
-      autoSigninRef.current = false;
+    if (opError) {
+      const now = Date.now();
+      if (now - lastAutoSigninMsRef.current > 30_000) {
+        lastAutoSigninMsRef.current = now;
+        console.log("[1cb] auto-signin triggered, opening onepassword://");
+        api.openUrl("onepassword://").catch(() => {});
+      } else {
+        console.log("[1cb] auto-signin suppressed (cooldown), last was", Math.round((now - lastAutoSigninMsRef.current) / 1000), "s ago");
+      }
     }
   }, [opError]);
 

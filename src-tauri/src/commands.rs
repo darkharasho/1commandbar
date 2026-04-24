@@ -103,6 +103,7 @@ pub async fn open_url(url: String) -> AppResult<()> {
 
 #[tauri::command]
 pub async fn hide_window(window: tauri::Window) -> AppResult<()> {
+    crate::hotkey::IS_SHOWN.store(false, std::sync::atomic::Ordering::SeqCst);
     window.hide().map_err(|e| AppError::Other(e.to_string()))?;
     Ok(())
 }
