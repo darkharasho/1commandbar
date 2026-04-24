@@ -208,41 +208,48 @@ export default function App() {
     <div
       key={settingsOpen ? "settings" : "main"}
       className={
-        "relative h-screen w-screen overflow-hidden shadow-2xl " +
+        "relative h-screen w-screen overflow-hidden " +
         (view.kind === "search" && !settingsOpen ? "flex flex-col justify-center" : "")
       }
-      style={{ backgroundColor: "#1e1e1e" }}
+      style={{ backgroundColor: "transparent" }}
     >
-      {settingsOpen ? (
-        <SettingsPanel onClose={() => setSettingsOpen(false)} />
-      ) : view.kind === "detail" ? (
-        <>
-          <ItemDetailView
-            itemId={view.id}
-            initialTitle={view.title}
-            initialVault={view.vault}
-            onBack={() => setView({ kind: "list" })}
-            onCopyField={copyFieldNoHide}
-            onOpen1P={open1PNoHide}
-          />
-          {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
-        </>
-      ) : (
-        <>
-          <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
-          {view.kind === "list" && (
-            <ResultsList
-              items={items}
-              selectedIndex={selected}
-              onSelectedChange={setSelected}
-              onItemClick={enterDetail}
+      <div
+        className={
+          "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border shadow-2xl overflow-hidden " +
+          (view.kind === "search" && !settingsOpen ? "" : "h-full")
+        }
+      >
+        {settingsOpen ? (
+          <SettingsPanel onClose={() => setSettingsOpen(false)} />
+        ) : view.kind === "detail" ? (
+          <>
+            <ItemDetailView
+              itemId={view.id}
+              initialTitle={view.title}
+              initialVault={view.vault}
+              onBack={() => setView({ kind: "list" })}
+              onCopyField={copyFieldNoHide}
+              onOpen1P={open1PNoHide}
             />
-          )}
-          {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
-          {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
-          {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
-        </>
-      )}
+            {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
+          </>
+        ) : (
+          <>
+            <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
+            {view.kind === "list" && (
+              <ResultsList
+                items={items}
+                selectedIndex={selected}
+                onSelectedChange={setSelected}
+                onItemClick={enterDetail}
+              />
+            )}
+            {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
+            {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
+            {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
+          </>
+        )}
+      </div>
     </div>
   );
 }
