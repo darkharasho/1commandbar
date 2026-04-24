@@ -59,10 +59,11 @@ export default function App() {
       setSelected(0);
       setMenuOpen(false);
       setToast(null);
-      setOpError(null);
       setView({ kind: "search" });
       searchBarRef.current?.focus();
       // Pre-warm the vault so first search is instant and auth errors surface immediately.
+      // Do NOT clear opError here — let refreshCache clear it on success only.
+      // Clearing it on every show resets autoSigninRef, causing repeated signin calls.
       api.refreshCache()
         .then(() => setOpError(null))
         .catch((e) => setOpError(String(e)));
