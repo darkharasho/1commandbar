@@ -207,10 +207,7 @@ export default function App() {
   return (
     <div
       key={settingsOpen ? "settings" : "main"}
-      className={
-        "relative h-screen w-screen overflow-hidden " +
-        (view.kind === "search" && !settingsOpen ? "flex flex-col justify-center" : "")
-      }
+      className="relative h-screen w-screen overflow-hidden flex flex-col justify-center"
       style={{ backgroundColor: "transparent" }}
     >
       <div
