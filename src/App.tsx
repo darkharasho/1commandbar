@@ -92,16 +92,16 @@ export default function App() {
     }
   }, [view.kind]);
 
-  // On first op error, open 1Password automatically so the user sees the auth
-  // dialog without having to do anything manually.
-  const autoOpenedRef = useRef(false);
+  // On first op error, run `op signin` automatically — this triggers the
+  // 1Password desktop auth silently without the user needing a terminal.
+  const autoSigninRef = useRef(false);
   useEffect(() => {
-    if (opError && !autoOpenedRef.current) {
-      autoOpenedRef.current = true;
-      api.openUrl("onepassword://").catch(() => {});
+    if (opError && !autoSigninRef.current) {
+      autoSigninRef.current = true;
+      api.signin().catch(() => {});
     }
     if (!opError) {
-      autoOpenedRef.current = false;
+      autoSigninRef.current = false;
     }
   }, [opError]);
 
