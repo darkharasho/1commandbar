@@ -48,7 +48,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (query === "") return;
+    if (query === "") {
+      setItems([]);
+      setSelected(0);
+      return;
+    }
     let cancelled = false;
     api.search(query).then((r) => { if (!cancelled) { setItems(r); setSelected(0); } }).catch(() => {});
     return () => { cancelled = true; };
