@@ -38,8 +38,73 @@ use tauri::AppHandle;
 /// the portal treats each invocation as a new (anonymous) app and re-prompts
 /// the user to bind the trigger. To verify persistence, test via the packaged
 /// AppImage / .deb / flatpak build which ships a `.desktop` file.
+/// Write `~/.local/share/applications/1commandbar.desktop` if it doesn't
+/// exist (or if the AppImage path has changed), then set
+/// `GIO_LAUNCHED_DESKTOP_FILE` so xdg-desktop-portal can derive a stable
+/// `app_id` from our process env. Without this the portal treats every launch
+/// as an anonymous app and re-shows the shortcut-binding dialog.
+fn ensure_gio_app_identity() {
+    if std::env::var_os("GIO_LAUNCHED_DESKTOP_FILE").is_some() {
+        return; // already set by a proper launcher — leave it alone
+    }
+
+    // Prefer the $APPIMAGE var (set by the AppImage runtime) over current_exe(),
+    // which resolves to the temp FUSE mount path and changes on every run.
+    let exec_path = std::env::var("APPIMAGE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_exe().unwrap_or_default());
+
+    let Some(apps_dir) = std::env::var_os("HOME")
+        .map(|h| std::path::PathBuf::from(h).join(".local/share/applications"))
+    else {
+        return;
+    };
+    let desktop_path = apps_dir.join("1commandbar.desktop");
+
+    let needs_write = if desktop_path.exists() {
+        // Update when the AppImage was replaced (path in file is stale).
+        std::env::var("APPIMAGE").is_ok()
+            && !std::fs::read_to_string(&desktop_path)
+                .unwrap_or_default()
+                .contains(exec_path.to_string_lossy().as_ref())
+    } else {
+        true
+    };
+
+    if needs_write {
+        let content = format!(
+            "[Desktop Entry]\n\
+             Name=1commandbar\n\
+             Comment=1Password command bar for Linux\n\
+             Exec={exec}\n\
+             Icon=1commandbar\n\
+             Type=Application\n\
+             Categories=Utility;\n\
+             StartupNotify=false\n",
+            exec = exec_path.display()
+        );
+        if std::fs::create_dir_all(&apps_dir).is_ok() {
+            let _ = std::fs::write(&desktop_path, content);
+        }
+    }
+
+    std::env::set_var("GIO_LAUNCHED_DESKTOP_FILE", &desktop_path);
+    std::env::set_var(
+        "GIO_LAUNCHED_DESKTOP_FILE_PID",
+        std::process::id().to_string(),
+    );
+    tracing::info!(
+        "portal_hotkey: set GIO_LAUNCHED_DESKTOP_FILE={}",
+        desktop_path.display()
+    );
+}
+
 pub async fn run(app: AppHandle) {
     tracing::info!("portal_hotkey: starting XDG GlobalShortcuts bridge");
+
+    // Must be called before GlobalShortcuts::new() so the portal reads the
+    // env from /proc/PID/environ and derives a stable app_id.
+    ensure_gio_app_identity();
 
     let proxy = match GlobalShortcuts::new().await {
         Ok(p) => {
