@@ -12,12 +12,20 @@ mod portal_hotkey;
 mod vault;
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let first = args.first().map(|s| s.as_str()).unwrap_or("");
+
+    // Re-exec in daemon mode so GIO_LAUNCHED_DESKTOP_FILE lands in
+    // /proc/PID/environ before any D-Bus connection is made.  The portal reads
+    // that file to derive a stable app_id for persistent hotkey binding.
+    // This must happen before tracing/Tauri init and before the IPC check.
+    if first.is_empty() {
+        portal_hotkey::reexec_with_gio_identity_if_needed();
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
-
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let first = args.first().map(|s| s.as_str()).unwrap_or("");
 
     match first {
         "toggle" | "show" | "hide" | "quit" => {

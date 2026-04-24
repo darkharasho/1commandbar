@@ -43,7 +43,7 @@ impl OpRunner for SystemOpRunner {
             if stderr.contains("not currently signed in") || stderr.contains("session expired") {
                 return Err(AppError::OpNotSignedIn);
             }
-            return Err(AppError::OpFailed(stderr.trim().to_string()));
+            return Err(AppError::OpFailed(clean_op_stderr(stderr.trim())));
         }
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
@@ -173,6 +173,19 @@ pub struct Field {
     pub value: Option<String>,
     #[serde(default)]
     pub totp: Option<String>,
+}
+
+/// Strip the `[ERROR] YYYY/MM/DD HH:MM:SS ` prefix that `op` prepends to stderr.
+fn clean_op_stderr(msg: &str) -> String {
+    // Format: "[ERROR] 2026/04/23 22:15:41 actual message"
+    msg.find("] ")
+        .and_then(|i| {
+            msg[i + 2..]
+                .splitn(3, ' ')
+                .nth(2)
+                .map(|s| s.trim().to_string())
+        })
+        .unwrap_or_else(|| msg.to_string())
 }
 
 pub async fn list_items(runner: &dyn OpRunner) -> AppResult<Vec<ItemSummary>> {
