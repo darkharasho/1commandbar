@@ -18,12 +18,6 @@ impl OpRunner for SystemOpRunner {
     async fn run(&self, args: &[&str]) -> AppResult<String> {
         let mut cmd = tokio::process::Command::new("op");
 
-        // Build a clean environment for op: only the vars it needs.
-        // The AppImage wrapper (linuxdeploy-plugin-gtk) poisons the inherited
-        // env with GIO_MODULE_DIR, GSETTINGS_SCHEMA_DIR, GTK_PATH, etc. that
-        // point into the AppImage's own libs — this breaks op's D-Bus/socket
-        // connection to the 1Password desktop app.  env_clear() + explicit
-        // allow-list is more reliable than chasing every bad var with env_remove.
         let home = std::env::var("HOME").unwrap_or_default();
         let base_path = std::env::var("PATH").unwrap_or_default();
         // /run/host/usr/bin covers rpm-ostree layered packages on Bazzite/Fedora Atomic
@@ -31,9 +25,11 @@ impl OpRunner for SystemOpRunner {
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
 
-        // Inherit almost everything so op can reach the 1Password daemon socket.
-        // Strip only AppImage/linuxdeploy vars that redirect shared libs and GTK
-        // modules into the bundle — those break op's D-Bus/socket connection.
+        // Inherit the parent env but remove AppImage/linuxdeploy vars that
+        // redirect libraries and GTK modules into the bundle.  Must use
+        // env_remove() — cmd.env(k,v) only overrides/adds and leaves vars that
+        // are "skipped" in the inherited env untouched, so the previous loop
+        // approach was silently a no-op for the stripped vars.
         const STRIP: &[&str] = &[
             "LD_LIBRARY_PATH",
             "LD_PRELOAD",
@@ -50,11 +46,17 @@ impl OpRunner for SystemOpRunner {
             "GDK_PIXBUF_MODULEDIR",
             "GDK_PIXBUF_MODULE_FILE",
             "GDK_BACKEND",
+            "PYTHONHOME",
+            "PYTHONPATH",
+            "GST_PLUGIN_SYSTEM_PATH",
+            "GST_PLUGIN_SYSTEM_PATH_1_0",
+            "PERLLIB",
+            "GTK_DATA_PREFIX",
+            "GTK_EXE_PREFIX",
+            "DESKTOPINTEGRATION",
         ];
-        for (k, v) in std::env::vars() {
-            if !STRIP.contains(&k.as_str()) {
-                cmd.env(&k, v);
-            }
+        for k in STRIP {
+            cmd.env_remove(k);
         }
         cmd.env("PATH", augmented);
 
