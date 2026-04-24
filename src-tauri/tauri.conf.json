@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "1commandbar",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "dev.1commandbar",
   "build": {
     "frontendDist": "../dist",
@@ -39,7 +39,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_PUBKEY_FROM_TAURI_SIGNER_GENERATE",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE3RjBGMDBBNkIzQUI5NEUKUldST3VUcHJDdkR3cDQ4ZGpJalB2WDh1dzVUMmsrOUtVSklabERtRFBqeFRLWm5wYVlzY0xZaTAK",
       "endpoints": [
         "https://github.com/darkharasho/1commandbar/releases/latest/download/latest.json"
       ]
