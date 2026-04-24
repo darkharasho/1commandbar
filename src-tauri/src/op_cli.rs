@@ -31,9 +31,7 @@ impl OpRunner for SystemOpRunner {
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
 
-        cmd.env_clear()
-            .env("PATH", augmented)
-            .env("HOME", &home);
+        cmd.env_clear().env("PATH", augmented).env("HOME", &home);
 
         // Pass through session vars that op needs to find the 1Password socket
         // and authenticate via the desktop app.
