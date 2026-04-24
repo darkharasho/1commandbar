@@ -21,4 +21,5 @@ export const api = {
     invoke<void>("set_autostart_enabled", { enabled }),
   setClipboardTimeout: (secs: number) =>
     invoke<void>("set_clipboard_timeout", { secs }),
+  signin: () => invoke<void>("signin"),
 };

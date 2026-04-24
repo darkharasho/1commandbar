@@ -22,6 +22,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string } | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -44,6 +45,7 @@ export default function App() {
       setMenuOpen(false);
       setToast(null);
       setOpError(null);
+      setSigningIn(false);
       setView({ kind: "search" });
       // Pre-warm the vault so first search is instant and auth errors surface immediately.
       api.refreshCache()
@@ -83,14 +85,25 @@ export default function App() {
     }
   }, [view.kind]);
 
-  // Resize the OS window to match content so transparency gaps never show.
+  // Auto-reauth: trigger `op signin` whenever an auth error surfaces.
+  // op signin asks the 1Password desktop app to show its auth popup; once
+  // approved it warms the cache and we clear the error.
   useEffect(() => {
-    if (settingsOpen || view.kind === "detail" || view.kind === "list") {
-      api.resizeWindow(360).catch(() => {});
-    } else {
-      api.resizeWindow(200).catch(() => {});
-    }
-  }, [view.kind, settingsOpen]);
+    if (!opError) { setSigningIn(false); return; }
+    let cancelled = false;
+    setSigningIn(true);
+    api.signin()
+      .then(() => { if (!cancelled) { setOpError(null); setSigningIn(false); } })
+      .catch((e) => { if (!cancelled) { setOpError(String(e)); setSigningIn(false); } });
+    return () => { cancelled = true; };
+  }, [opError]);
+
+  // Resize the OS window to match content so transparency gaps never show.
+  // Base on items/query/opError directly so the resize is never one frame behind.
+  useEffect(() => {
+    const collapsed = !settingsOpen && view.kind !== "detail" && items.length === 0 && query === "" && !opError;
+    api.resizeWindow(collapsed ? 200 : 360).catch(() => {});
+  }, [view.kind, settingsOpen, items.length, query, opError]);
 
 
 const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
@@ -225,7 +238,9 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
         className={
           "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border overflow-hidden flex flex-col " +
           "transition-[height] duration-200 ease-in-out " +
-          (view.kind === "search" && !settingsOpen ? "h-[58px]" : "h-[360px]")
+          (!settingsOpen && view.kind !== "detail" && items.length === 0 && query === "" && !opError
+            ? "h-[58px]"
+            : "h-[360px]")
         }
       >
         {settingsOpen ? (
@@ -251,13 +266,14 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
               </div>
             ) : (
               <div className="flex-1 min-h-0 overflow-hidden relative">
-                {view.kind === "list" && (
+                {(view.kind === "list" || opError) && (
                   <ResultsList
                     items={items}
                     selectedIndex={selected}
                     onSelectedChange={setSelected}
                     onItemClick={enterDetail}
                     opError={opError}
+                    signingIn={signingIn}
                     query={query}
                   />
                 )}

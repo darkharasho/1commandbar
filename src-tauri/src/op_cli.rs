@@ -25,11 +25,15 @@ impl OpRunner for SystemOpRunner {
         let augmented = format!(
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
-        // Clear LD_LIBRARY_PATH so op doesn't accidentally load the AppImage's
-        // bundled libs instead of the system ones it was built against.
+        // Clear AppImage-specific vars so op uses system paths and libs.
+        // APPIMAGE/APPDIR cause some binaries to mis-resolve runtime paths;
+        // LD_LIBRARY_PATH would make op load the AppImage's bundled libs.
         cmd.env("PATH", augmented)
             .env_remove("LD_LIBRARY_PATH")
             .env_remove("LD_PRELOAD")
+            .env_remove("APPIMAGE")
+            .env_remove("APPDIR")
+            .env_remove("APPIMAGE_EXTRACT_AND_RUN")
             .args(args);
         let output = cmd.output().await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
@@ -40,7 +44,11 @@ impl OpRunner for SystemOpRunner {
         })?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            if stderr.contains("not currently signed in") || stderr.contains("session expired") {
+            if stderr.contains("not currently signed in")
+                || stderr.contains("session expired")
+                || stderr.contains("connection reset")
+                || stderr.contains("connect: no such file")
+            {
                 return Err(AppError::OpNotSignedIn);
             }
             return Err(AppError::OpFailed(clean_op_stderr(stderr.trim())));
@@ -186,6 +194,31 @@ fn clean_op_stderr(msg: &str) -> String {
                 .map(|s| s.trim().to_string())
         })
         .unwrap_or_else(|| msg.to_string())
+}
+
+/// Trigger the 1Password desktop app auth popup by running `op signin`.
+/// With CLI integration enabled this is a no-op if already authed, or it
+/// asks the desktop app to show its unlock/authorize dialog.
+pub async fn trigger_signin(runner: &dyn OpRunner) -> AppResult<()> {
+    // Try to find a saved account shorthand so we can pass --account.
+    // If account list itself fails we still attempt a bare `op signin`.
+    #[derive(serde::Deserialize)]
+    struct Acct {
+        shorthand: Option<String>,
+    }
+    let shorthand: Option<String> = runner
+        .run(&["account", "list", "--format", "json"])
+        .await
+        .ok()
+        .and_then(|json| serde_json::from_str::<Vec<Acct>>(&json).ok())
+        .and_then(|v| v.into_iter().find_map(|a| a.shorthand));
+
+    if let Some(sh) = shorthand {
+        runner.run(&["signin", "--account", &sh]).await?;
+    } else {
+        runner.run(&["signin"]).await?;
+    }
+    Ok(())
 }
 
 pub async fn list_items(runner: &dyn OpRunner) -> AppResult<Vec<ItemSummary>> {

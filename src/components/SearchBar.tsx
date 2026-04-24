@@ -24,17 +24,18 @@ const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
 
   useImperativeHandle(ref, () => ({
     focus: () => {
-      setTimeout(() => inputRef.current?.focus(), 0);
+      setTimeout(() => inputRef.current?.focus(), 50);
     },
   }), []);
 
   // Re-focus the input every time the window is shown. Without this, after
   // Wayland hides/reshows the window the webview keeps DOM focus on nothing
   // and typed input routes to whichever app had OS focus before.
+  // 100ms gives KWin enough time to activate the window before the focus call.
   useEffect(() => {
     const focus = () => {
       setValue("");
-      setTimeout(() => inputRef.current?.focus(), 0);
+      setTimeout(() => inputRef.current?.focus(), 100);
     };
     focus();
     const unlisten = listen("window-shown", focus).catch(() => () => {});

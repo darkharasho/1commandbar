@@ -173,12 +173,10 @@ pub async fn set_clipboard_timeout(secs: u64, state: tauri::State<'_, AppState>)
 }
 
 #[tauri::command]
-pub async fn signin(password: String, state: tauri::State<'_, AppState>) -> AppResult<()> {
-    let _ = password; // v1: delegate to op's interactive prompt via session-token flow in a later pass
-    let _ = state;
-    Err(AppError::Other(
-        "interactive signin not implemented in v1".into(),
-    ))
+pub async fn signin(state: tauri::State<'_, AppState>) -> AppResult<()> {
+    op_cli::trigger_signin(&*state.runner).await?;
+    // Warm the cache immediately so the next search is instant.
+    state.vault.refresh(&*state.runner).await
 }
 
 #[cfg(test)]
