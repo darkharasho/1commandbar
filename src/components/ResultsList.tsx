@@ -11,6 +11,11 @@ interface Props {
 
 export default function ResultsList({ items, selectedIndex, onSelectedChange, onItemClick }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -32,11 +37,12 @@ export default function ResultsList({ items, selectedIndex, onSelectedChange, on
       ref={ref}
       tabIndex={0}
       role="listbox"
-      className="max-h-96 overflow-y-auto outline-none"
+      className="h-full overflow-y-auto outline-none"
     >
       {items.map((item, i) => (
         <div
           key={item.id}
+          ref={i === selectedIndex ? selectedRef : null}
           role="option"
           aria-selected={i === selectedIndex}
           onMouseDown={(e) => e.preventDefault()}

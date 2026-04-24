@@ -76,16 +76,7 @@ export default function App() {
   }, [view.kind]);
 
 
-  // Resize window: compact when empty-search, full otherwise.
-  useEffect(() => {
-    if (settingsOpen || view.kind === "detail" || view.kind === "list") {
-      api.resizeWindow(360).catch(() => {});
-    } else {
-      api.resizeWindow(200).catch(() => {});
-    }
-  }, [view.kind, settingsOpen]);
-
-  const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
+const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
     if (view.kind === "detail") {
       const found = items.find((i) => i.id === view.id);
       return { id: view.id, url: found?.url ?? null };
@@ -210,44 +201,52 @@ export default function App() {
 
   return (
     <div
-      key={settingsOpen ? "settings" : "main"}
       className="relative h-screen w-screen overflow-hidden flex flex-col justify-center"
       style={{ backgroundColor: "transparent" }}
     >
       <div
         className={
-          "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border shadow-2xl overflow-hidden " +
-          (view.kind === "search" && !settingsOpen ? "" : "h-full")
+          "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border shadow-2xl overflow-hidden flex flex-col " +
+          "transition-[height] duration-200 ease-in-out " +
+          (view.kind === "search" && !settingsOpen ? "h-[58px]" : "h-[360px]")
         }
       >
         {settingsOpen ? (
-          <SettingsPanel onClose={() => setSettingsOpen(false)} />
-        ) : view.kind === "detail" ? (
-          <>
-            <ItemDetailView
-              itemId={view.id}
-              initialTitle={view.title}
-              initialVault={view.vault}
-              onBack={() => setView({ kind: "list" })}
-              onCopyField={copyFieldNoHide}
-              onOpen1P={open1PNoHide}
-            />
-            {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
-          </>
+          <div className="flex-1 min-h-0">
+            <SettingsPanel onClose={() => setSettingsOpen(false)} />
+          </div>
         ) : (
           <>
-            <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
-            {view.kind === "list" && (
-              <ResultsList
-                items={items}
-                selectedIndex={selected}
-                onSelectedChange={setSelected}
-                onItemClick={enterDetail}
-              />
+            <div className={`shrink-0${view.kind === "detail" ? " hidden" : ""}`}>
+              <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
+            </div>
+            {view.kind === "detail" ? (
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <ItemDetailView
+                  itemId={view.id}
+                  initialTitle={view.title}
+                  initialVault={view.vault}
+                  onBack={() => setView({ kind: "list" })}
+                  onCopyField={copyFieldNoHide}
+                  onOpen1P={open1PNoHide}
+                />
+                {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-hidden relative">
+                {view.kind === "list" && (
+                  <ResultsList
+                    items={items}
+                    selectedIndex={selected}
+                    onSelectedChange={setSelected}
+                    onItemClick={enterDetail}
+                  />
+                )}
+                {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
+                {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
+                {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
+              </div>
             )}
-            {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
-            {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
-            {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
           </>
         )}
       </div>

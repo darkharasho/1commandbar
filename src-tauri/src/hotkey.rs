@@ -28,12 +28,6 @@ pub fn toggle_window(app: &AppHandle) {
         if visible {
             let _ = w.hide();
         } else {
-            // On Wayland KWin only re-runs its placement policy when the size
-            // actually changes. Bounce the size from 200 → 360 → 200 so every
-            // show re-centers, regardless of prior window position.
-            let _ = w.set_size(tauri::LogicalSize::new(440u32, 360u32));
-            let _ = w.set_size(tauri::LogicalSize::new(440u32, 200u32));
-            let _ = w.center();
             let _ = w.show();
             let _ = w.set_focus();
             let _ = app.emit("window-shown", ());
