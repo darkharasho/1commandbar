@@ -13,33 +13,6 @@ pub trait OpRunner: Send + Sync {
 
 pub struct SystemOpRunner;
 
-const STRIP: &[&str] = &[
-    "LD_LIBRARY_PATH",
-    "LD_PRELOAD",
-    "APPIMAGE",
-    "APPDIR",
-    "APPIMAGE_EXTRACT_AND_RUN",
-    "ARGV0",
-    "OWD",
-    "GIO_MODULE_DIR",
-    "GIO_EXTRA_MODULES",
-    "GSETTINGS_SCHEMA_DIR",
-    "GTK_PATH",
-    "GTK_IM_MODULE_FILE",
-    "GDK_PIXBUF_MODULEDIR",
-    "GDK_PIXBUF_MODULE_FILE",
-    "GDK_BACKEND",
-    "PYTHONHOME",
-    "PYTHONPATH",
-    "GST_PLUGIN_SYSTEM_PATH",
-    "GST_PLUGIN_SYSTEM_PATH_1_0",
-    "PERLLIB",
-    "GTK_DATA_PREFIX",
-    "GTK_EXE_PREFIX",
-    "DESKTOPINTEGRATION",
-    "XDG_DATA_DIRS",
-    "XDG_CONFIG_DIRS",
-];
 
 #[async_trait]
 impl OpRunner for SystemOpRunner {
@@ -52,12 +25,22 @@ impl OpRunner for SystemOpRunner {
         );
 
         let mut cmd = tokio::process::Command::new("op");
-        // Inherit the parent env but remove AppImage/linuxdeploy vars that
-        // redirect libraries and GTK modules into the bundle.
-        for k in STRIP {
-            cmd.env_remove(k);
-        }
+        // Start from a clean env instead of inheriting the AppImage-polluted
+        // parent env and trying to strip individual bad vars. Pass only what
+        // op actually needs to locate its socket and authenticate.
+        cmd.env_clear();
+        cmd.env("HOME", &home);
         cmd.env("PATH", augmented);
+        // XDG_RUNTIME_DIR is where the 1Password daemon socket lives.
+        // DBUS_SESSION_BUS_ADDRESS is needed for D-Bus on some setups.
+        for var in &["XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS",
+                     "USER", "LOGNAME", "LANG", "LC_ALL",
+                     "DISPLAY", "WAYLAND_DISPLAY",
+                     "OP_SERVICE_ACCOUNT_TOKEN"] {
+            if let Ok(val) = std::env::var(var) {
+                cmd.env(var, val);
+            }
+        }
         cmd.args(args);
 
         let output = cmd.output().await.map_err(|e| {
