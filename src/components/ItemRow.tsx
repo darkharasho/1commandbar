@@ -1,4 +1,4 @@
-import { CreditCard, IdCard, KeyRound, Lock, StickyNote, type LucideIcon } from "lucide-react";
+import { CreditCard, IdCard, KeyRound, Lock, StickyNote, Vault, type LucideIcon } from "lucide-react";
 import type { SearchResult } from "../types";
 
 function iconFor(category: string): LucideIcon {
@@ -38,8 +38,11 @@ export default function ItemRow({ item, selected }: Props) {
         <span className="text-[16px] font-medium text-ink-primary truncate">
           {item.title}
         </span>
-        <span className="text-[13px] text-ink-secondary truncate">
-          {item.username || "(no username)"} · {item.vault}
+        <span className="text-[13px] text-ink-secondary truncate flex items-center gap-1">
+          {item.username || "(no username)"}
+          <span className="text-ink-tertiary">·</span>
+          <Vault size={11} className="stroke-ink-tertiary shrink-0" aria-hidden />
+          {item.vault}
         </span>
       </div>
       {selected && (
