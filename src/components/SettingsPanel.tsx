@@ -69,8 +69,8 @@ export default function SettingsPanel({ onClose }: Props) {
       } else {
         setUpdateStatus({ kind: "upToDate" });
       }
-    } catch {
-      setUpdateStatus({ kind: "error", msg: "Could not check for updates" });
+    } catch (e) {
+      setUpdateStatus({ kind: "error", msg: String(e) });
     }
   };
 
