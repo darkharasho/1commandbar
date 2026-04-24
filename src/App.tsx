@@ -72,14 +72,13 @@ export default function App() {
   }, [view.kind]);
 
 
-  // Resize window: compact when empty-search, full when showing results/detail.
+  // Resize window: compact when empty-search, full otherwise.
   useEffect(() => {
-    if (settingsOpen || view.kind === "detail") {
+    if (settingsOpen || view.kind === "detail" || view.kind === "list") {
       api.resizeWindow(360).catch(() => {});
-      return;
+    } else {
+      api.resizeWindow(64).catch(() => {});
     }
-    const h = view.kind === "search" ? 72 : 360;
-    api.resizeWindow(h).catch(() => {});
   }, [view.kind, settingsOpen]);
 
   const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
@@ -208,10 +207,7 @@ export default function App() {
   return (
     <div
       key={settingsOpen ? "settings" : "main"}
-      className={
-        "relative h-screen w-screen overflow-hidden shadow-2xl " +
-        (view.kind === "search" && !settingsOpen ? "flex flex-col justify-center" : "")
-      }
+      className="relative h-screen w-screen overflow-hidden shadow-2xl"
       style={{ backgroundColor: "#1e1e1e" }}
     >
       {settingsOpen ? (
