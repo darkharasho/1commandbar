@@ -117,11 +117,11 @@ pub async fn get_item_detail(
 
 #[tauri::command]
 pub async fn resize_window(height: u32, window: tauri::Window) -> AppResult<()> {
-    let size = window
-        .outer_size()
+    window
+        .set_size(tauri::LogicalSize::new(440u32, height))
         .map_err(|e| AppError::Other(e.to_string()))?;
     window
-        .set_size(tauri::PhysicalSize::new(size.width, height))
+        .center()
         .map_err(|e| AppError::Other(e.to_string()))?;
     Ok(())
 }
