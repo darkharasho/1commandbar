@@ -37,6 +37,8 @@ impl OpRunner for SystemOpRunner {
         // and authenticate via the desktop app.
         for var in &[
             "XDG_RUNTIME_DIR",
+            "XDG_CONFIG_HOME",
+            "XDG_DATA_HOME",
             "DBUS_SESSION_BUS_ADDRESS",
             "WAYLAND_DISPLAY",
             "DISPLAY",
@@ -60,13 +62,11 @@ impl OpRunner for SystemOpRunner {
         })?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            if stderr.contains("not currently signed in")
-                || stderr.contains("session expired")
-                || stderr.contains("connection reset")
-                || stderr.contains("connect: no such file")
-            {
+            if stderr.contains("not currently signed in") || stderr.contains("session expired") {
                 return Err(AppError::OpNotSignedIn);
             }
+            // Return the real message for everything else (connection reset, unknown
+            // command, etc.) so the UI can show what actually went wrong.
             return Err(AppError::OpFailed(clean_op_stderr(stderr.trim())));
         }
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
