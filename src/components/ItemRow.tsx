@@ -1,7 +1,8 @@
+import * as simpleIcons from "simple-icons";
 import { CreditCard, IdCard, KeyRound, Lock, StickyNote, Vault, type LucideIcon } from "lucide-react";
 import type { SearchResult } from "../types";
 
-function iconFor(category: string): LucideIcon {
+function categoryIconFor(category: string): LucideIcon {
   switch (category.toUpperCase()) {
     case "LOGIN": return KeyRound;
     case "SECURE_NOTE": return StickyNote;
@@ -11,13 +12,21 @@ function iconFor(category: string): LucideIcon {
   }
 }
 
+function simpleIconSvgFor(title: string): string | undefined {
+  // simple-icons exports as siGithub, siGoogle, etc. — build the key from the title
+  const key = "si" + title.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const icon = (simpleIcons as Record<string, { svg: string } | undefined>)[key];
+  return icon?.svg;
+}
+
 interface Props {
   item: SearchResult;
   selected: boolean;
 }
 
 export default function ItemRow({ item, selected }: Props) {
-  const Icon = iconFor(item.category);
+  const siSvg = simpleIconSvgFor(item.title);
+  const FallbackIcon = categoryIconFor(item.category);
   return (
     <div
       className={
@@ -33,7 +42,19 @@ export default function ItemRow({ item, selected }: Props) {
           className="absolute left-0 top-1 bottom-1 w-[2px] rounded-r bg-accent/50"
         />
       )}
-      <Icon size={18} className="stroke-ink-secondary shrink-0" aria-hidden />
+      {siSvg ? (
+        <svg
+          role="img"
+          aria-hidden
+          viewBox="0 0 24 24"
+          width={18}
+          height={18}
+          className="shrink-0 fill-ink-secondary"
+          dangerouslySetInnerHTML={{ __html: siSvg.replace(/^<svg[^>]*>|<\/svg>$/g, "") }}
+        />
+      ) : (
+        <FallbackIcon size={18} className="stroke-ink-secondary shrink-0" aria-hidden />
+      )}
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-[16px] font-medium text-ink-primary truncate">
           {item.title}
