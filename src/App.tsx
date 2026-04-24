@@ -67,7 +67,7 @@ export default function App() {
   // Resize window for compact vs full mode.
   useEffect(() => {
     if (settingsOpen) return;
-    const h = view.kind === "search" ? 80 : 420;
+    const h = view.kind === "search" ? 64 : 360;
     api.resizeWindow(h).catch(() => {});
   }, [view.kind, settingsOpen]);
 

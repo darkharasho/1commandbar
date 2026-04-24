@@ -14,8 +14,8 @@
       {
         "label": "bar",
         "title": "1commandbar",
-        "width": 540,
-        "height": 420,
+        "width": 440,
+        "height": 360,
         "resizable": false,
         "decorations": false,
         "transparent": false,
