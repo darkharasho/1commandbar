@@ -222,20 +222,22 @@ export default function App() {
           {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
         </>
       ) : (
-        <>
-          <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
-          {view.kind === "list" && (
-            <ResultsList
-              items={items}
-              selectedIndex={selected}
-              onSelectedChange={setSelected}
-              onItemClick={enterDetail}
-            />
-          )}
+        <div className={view.kind === "search" ? "h-full flex items-center" : undefined}>
+          <div className="w-full">
+            <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
+            {view.kind === "list" && (
+              <ResultsList
+                items={items}
+                selectedIndex={selected}
+                onSelectedChange={setSelected}
+                onItemClick={enterDetail}
+              />
+            )}
+          </div>
           {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
           {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
           {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
-        </>
+        </div>
       )}
     </div>
   );
