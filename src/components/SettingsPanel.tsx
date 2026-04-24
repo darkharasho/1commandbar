@@ -2,6 +2,7 @@ import { Check, ChevronDown, ChevronLeft, RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { getVersion } from "@tauri-apps/api/app";
 import { api } from "../hooks/useTauri";
 
 interface Props {
@@ -26,6 +27,7 @@ type UpdateStatus =
 
 export default function SettingsPanel({ onClose }: Props) {
   const [autostart, setAutostart] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>("");
   const [clipboardTimeout, setClipboardTimeoutValue] = useState<number>(90);
   const [clipboardOpen, setClipboardOpen] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: "idle" });
@@ -36,6 +38,7 @@ export default function SettingsPanel({ onClose }: Props) {
     api.getConfig()
       .then((c) => setClipboardTimeoutValue(c.clipboard_timeout_secs))
       .catch(() => {});
+    getVersion().then(setAppVersion).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -207,7 +210,9 @@ export default function SettingsPanel({ onClose }: Props) {
         <section className="flex flex-col space-y-2">
           <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-bar-surface">
             <div className="flex flex-col">
-              <span className="text-ink-primary">Check for updates</span>
+              <span className="text-ink-primary">
+                Check for updates{appVersion && <span className="text-ink-tertiary font-normal"> · v{appVersion}</span>}
+              </span>
               {updateStatus.kind === "upToDate" && (
                 <span className="text-xs text-ink-secondary mt-0.5">You're up to date</span>
               )}

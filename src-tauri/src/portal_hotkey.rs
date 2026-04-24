@@ -154,11 +154,13 @@ pub async fn run(app: AppHandle) {
         }
     }
 
-    let shortcuts =
-        [NewShortcut::new("toggle", "Toggle 1commandbar")
-            .preferred_trigger(Some("ALT+SHIFT+space"))];
+    // No preferred_trigger — let the user assign the key in
+    // System Settings → Keyboard → Shortcuts, the same way OBS does it.
+    // Specifying a preferred trigger causes KDE to show a confirmation dialog
+    // on first launch which is confusing and often missed.
+    let shortcuts = [NewShortcut::new("toggle", "Toggle 1commandbar")];
 
-    tracing::info!("portal_hotkey: calling bind_shortcuts(toggle, ALT+SHIFT+space)");
+    tracing::info!("portal_hotkey: calling bind_shortcuts(toggle)");
     let bound_count = match proxy.bind_shortcuts(&session, &shortcuts, None).await {
         Ok(request) => match request.response() {
             Ok(resp) => {
