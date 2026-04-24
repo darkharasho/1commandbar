@@ -92,6 +92,19 @@ export default function App() {
     }
   }, [view.kind]);
 
+  // On first op error, open 1Password automatically so the user sees the auth
+  // dialog without having to do anything manually.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (opError && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      api.openUrl("onepassword://").catch(() => {});
+    }
+    if (!opError) {
+      autoOpenedRef.current = false;
+    }
+  }, [opError]);
+
   // Auto-reauth: poll until the op error clears (user unlocks 1Password / enables CLI integration).
   useEffect(() => {
     if (!opError) return;

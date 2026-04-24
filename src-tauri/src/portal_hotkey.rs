@@ -85,6 +85,14 @@ pub fn reexec_with_gio_identity_if_needed() {
 }
 
 pub async fn run(app: AppHandle) {
+    // When DISPLAY is set, XWayland is available and tauri-plugin-global-shortcut
+    // uses X11 key grabs which are reliable on KDE across restarts.
+    // Only use the XDG portal on pure Wayland (no DISPLAY / no XWayland).
+    if !crate::hotkey::is_pure_wayland() {
+        tracing::info!("portal_hotkey: DISPLAY is set, X11 path handles shortcuts");
+        return;
+    }
+
     tracing::info!("portal_hotkey: starting XDG GlobalShortcuts bridge");
     tracing::info!(
         "portal_hotkey: GIO_LAUNCHED_DESKTOP_FILE={:?}",
