@@ -25,7 +25,12 @@ impl OpRunner for SystemOpRunner {
         let augmented = format!(
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
-        cmd.env("PATH", augmented).args(args);
+        // Clear LD_LIBRARY_PATH so op doesn't accidentally load the AppImage's
+        // bundled libs instead of the system ones it was built against.
+        cmd.env("PATH", augmented)
+            .env_remove("LD_LIBRARY_PATH")
+            .env_remove("LD_PRELOAD")
+            .args(args);
         let output = cmd.output().await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 AppError::OpNotFound
