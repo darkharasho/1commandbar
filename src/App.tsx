@@ -71,10 +71,14 @@ export default function App() {
     }
   }, [view.kind]);
 
-  // Resize window for compact vs full mode.
+
+  // Resize window: compact when empty-search, full when showing results/detail.
   useEffect(() => {
-    if (settingsOpen) return;
-    const h = view.kind === "search" ? 64 : 360;
+    if (settingsOpen || view.kind === "detail") {
+      api.resizeWindow(360).catch(() => {});
+      return;
+    }
+    const h = view.kind === "search" ? 72 : 360;
     api.resizeWindow(h).catch(() => {});
   }, [view.kind, settingsOpen]);
 
