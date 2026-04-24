@@ -13,10 +13,38 @@ pub trait OpRunner: Send + Sync {
 
 pub struct SystemOpRunner;
 
+const STRIP: &[&str] = &[
+    "LD_LIBRARY_PATH",
+    "LD_PRELOAD",
+    "APPIMAGE",
+    "APPDIR",
+    "APPIMAGE_EXTRACT_AND_RUN",
+    "ARGV0",
+    "OWD",
+    "GIO_MODULE_DIR",
+    "GIO_EXTRA_MODULES",
+    "GSETTINGS_SCHEMA_DIR",
+    "GTK_PATH",
+    "GTK_IM_MODULE_FILE",
+    "GDK_PIXBUF_MODULEDIR",
+    "GDK_PIXBUF_MODULE_FILE",
+    "GDK_BACKEND",
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "GST_PLUGIN_SYSTEM_PATH",
+    "GST_PLUGIN_SYSTEM_PATH_1_0",
+    "PERLLIB",
+    "GTK_DATA_PREFIX",
+    "GTK_EXE_PREFIX",
+    "DESKTOPINTEGRATION",
+    "XDG_DATA_DIRS",
+    "XDG_CONFIG_DIRS",
+];
+
 #[async_trait]
 impl OpRunner for SystemOpRunner {
     async fn run(&self, args: &[&str]) -> AppResult<String> {
-        let mut cmd = tokio::process::Command::new("op");
+        use tokio::io::AsyncReadExt;
 
         let home = std::env::var("HOME").unwrap_or_default();
         let base_path = std::env::var("PATH").unwrap_or_default();
@@ -25,59 +53,53 @@ impl OpRunner for SystemOpRunner {
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
 
-        // Inherit the parent env but remove AppImage/linuxdeploy vars that
-        // redirect libraries and GTK modules into the bundle.  Must use
-        // env_remove() — cmd.env(k,v) only overrides/adds and leaves vars that
-        // are "skipped" in the inherited env untouched, so the previous loop
-        // approach was silently a no-op for the stripped vars.
-        const STRIP: &[&str] = &[
-            "LD_LIBRARY_PATH",
-            "LD_PRELOAD",
-            "APPIMAGE",
-            "APPDIR",
-            "APPIMAGE_EXTRACT_AND_RUN",
-            "ARGV0",
-            "OWD",
-            "GIO_MODULE_DIR",
-            "GIO_EXTRA_MODULES",
-            "GSETTINGS_SCHEMA_DIR",
-            "GTK_PATH",
-            "GTK_IM_MODULE_FILE",
-            "GDK_PIXBUF_MODULEDIR",
-            "GDK_PIXBUF_MODULE_FILE",
-            "GDK_BACKEND",
-            "PYTHONHOME",
-            "PYTHONPATH",
-            "GST_PLUGIN_SYSTEM_PATH",
-            "GST_PLUGIN_SYSTEM_PATH_1_0",
-            "PERLLIB",
-            "GTK_DATA_PREFIX",
-            "GTK_EXE_PREFIX",
-            "DESKTOPINTEGRATION",
-        ];
+        // Spawn op inside a PTY so isatty() returns true for the op process.
+        // The 1Password daemon gates its auth dialog on isatty(); without a PTY
+        // it silently times out with "connecting to desktop app timed out".
+        let mut pty = pty_process::Pty::new()
+            .map_err(|e| AppError::Other(format!("pty alloc failed: {e}")))?;
+        pty.resize(pty_process::Size::new(24, 80)).ok();
+
+        let mut cmd = pty_process::Command::new("op");
         for k in STRIP {
             cmd.env_remove(k);
         }
-        cmd.env("PATH", augmented);
-
+        cmd.env("PATH", &augmented);
         cmd.args(args);
-        let output = cmd.output().await.map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
+
+        let pts = pty
+            .pts()
+            .map_err(|e| AppError::Other(format!("pty pts failed: {e}")))?;
+        let mut child = cmd.spawn(&pts).map_err(|e| {
+            if matches!(e, pty_process::Error::Io(ref io) if io.kind() == std::io::ErrorKind::NotFound) {
                 AppError::OpNotFound
             } else {
-                AppError::Io(e)
+                AppError::Other(format!("spawn failed: {e}"))
             }
         })?;
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            if stderr.contains("not currently signed in") || stderr.contains("session expired") {
+        drop(pts);
+
+        // Drain output and wait concurrently to avoid PTY buffer deadlock.
+        let (read_buf, wait_result) = tokio::join!(
+            async {
+                let mut buf = Vec::new();
+                let _ = pty.read_to_end(&mut buf).await;
+                buf
+            },
+            child.wait()
+        );
+
+        let status = wait_result.map_err(AppError::Io)?;
+        // PTY line discipline converts \n → \r\n; normalise back.
+        let output = String::from_utf8_lossy(&read_buf).replace("\r\n", "\n");
+
+        if !status.success() {
+            if output.contains("not currently signed in") || output.contains("session expired") {
                 return Err(AppError::OpNotSignedIn);
             }
-            // Return the real message for everything else (connection reset, unknown
-            // command, etc.) so the UI can show what actually went wrong.
-            return Err(AppError::OpFailed(clean_op_stderr(stderr.trim())));
+            return Err(AppError::OpFailed(clean_op_stderr(output.trim())));
         }
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        Ok(output)
     }
 }
 
