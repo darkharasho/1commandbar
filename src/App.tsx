@@ -15,6 +15,7 @@ type View =
   | { kind: "list" }
   | { kind: "detail"; id: string; title: string; vault: string };
 
+
 export default function App() {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<SearchResult[]>([]);

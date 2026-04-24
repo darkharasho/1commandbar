@@ -108,6 +108,7 @@ pub async fn hide_window(window: tauri::Window) -> AppResult<()> {
     Ok(())
 }
 
+
 #[tauri::command]
 pub async fn get_item_detail(
     item_id: String,

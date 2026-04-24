@@ -1,7 +1,6 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 /// Millisecond timestamp of the last show(), used to suppress stale
 /// Focused(false) events that are queued from the previous hide.
@@ -107,24 +106,136 @@ fn request_x11_focus() {
     tracing::warn!("toggle_window: x11rb no window with 'commandbar' in WM_CLASS");
 }
 
+/// Register the global hotkey using our own XGrabKey with owner_events=false.
+/// The tauri-plugin-global-shortcut uses owner_events=true (or equivalent),
+/// which causes KeyPress events to be swallowed by our focused XWayland window
+/// rather than reaching the grab handler. owner_events=false guarantees the
+/// KeyPress always arrives here, regardless of which window has focus.
+#[cfg(target_os = "linux")]
+fn spawn_x11_hotkey_thread(app: AppHandle, hotkey: String) {
+    std::thread::spawn(move || {
+        use x11rb::connection::Connection;
+        use x11rb::protocol::xproto::*;
+        use x11rb::rust_connection::RustConnection;
+
+        let (conn, screen_num) = match RustConnection::connect(None) {
+            Ok(c) => c,
+            Err(e) => { tracing::error!("x11 hotkey: connect failed: {e}"); return; }
+        };
+        let screen = &conn.setup().roots[screen_num];
+        let root = screen.root;
+
+        let (base_modmask, keycode) = match parse_x11_hotkey(&conn, &hotkey) {
+            Some(k) => k,
+            None => { tracing::error!("x11 hotkey: failed to parse '{hotkey}'"); return; }
+        };
+
+        // Grab with all combinations of common lock modifiers so the hotkey
+        // fires regardless of CapsLock / NumLock state.
+        let lock_extras: [ModMask; 4] = [
+            ModMask::from(0u16),
+            ModMask::LOCK,
+            ModMask::M2,
+            ModMask::LOCK | ModMask::M2,
+        ];
+        for extra in lock_extras {
+            let _ = conn.grab_key(
+                false, // owner_events=false: always deliver KeyPress to us
+                root,
+                base_modmask | extra,
+                keycode,
+                GrabMode::ASYNC,
+                GrabMode::ASYNC,
+            );
+        }
+        let _ = conn.flush();
+        tracing::info!(
+            "x11 hotkey: registered '{hotkey}' (keycode={keycode}, modmask={:#06x})",
+            u16::from(base_modmask)
+        );
+
+        loop {
+            match conn.wait_for_event() {
+                Ok(x11rb::protocol::Event::KeyPress(_)) => {
+                    tracing::info!("x11 hotkey: KeyPress");
+                    toggle_window(&app);
+                }
+                Ok(_) => {} // KeyRelease: ignore
+                Err(e) => { tracing::error!("x11 hotkey: event error: {e}"); break; }
+            }
+        }
+    });
+}
+
+/// Parse an accelerator string like "Alt+Shift+Space" into a ModMask + keycode.
+#[cfg(target_os = "linux")]
+fn parse_x11_hotkey(
+    conn: &x11rb::rust_connection::RustConnection,
+    hotkey: &str,
+) -> Option<(x11rb::protocol::xproto::ModMask, u8)> {
+    use x11rb::connection::Connection;
+    use x11rb::protocol::xproto::{ConnectionExt as XprotoExt, ModMask};
+
+    let parts: Vec<&str> = hotkey.split('+').collect();
+    let key_name = *parts.last()?;
+
+    let mut modmask = ModMask::from(0u16);
+    for m in &parts[..parts.len() - 1] {
+        match m.to_lowercase().as_str() {
+            "shift"           => modmask |= ModMask::SHIFT,
+            "ctrl" | "control" => modmask |= ModMask::CONTROL,
+            "alt"             => modmask |= ModMask::M1,
+            "super"           => modmask |= ModMask::M4,
+            other => tracing::warn!("x11 hotkey: unknown modifier '{other}'"),
+        }
+    }
+
+    let keysym: u32 = match key_name.to_lowercase().as_str() {
+        "space"              => 0x0020,
+        "return" | "enter"  => 0xff0d,
+        "escape" | "esc"    => 0xff1b,
+        "tab"               => 0xff09,
+        "backspace"         => 0xff08,
+        "f1"  => 0xffbe, "f2"  => 0xffbf, "f3"  => 0xffc0, "f4"  => 0xffc1,
+        "f5"  => 0xffc2, "f6"  => 0xffc3, "f7"  => 0xffc4, "f8"  => 0xffc5,
+        "f9"  => 0xffc6, "f10" => 0xffc7, "f11" => 0xffc8, "f12" => 0xffc9,
+        s if s.len() == 1   => s.chars().next()? as u32,
+        other => { tracing::error!("x11 hotkey: unknown key '{other}'"); return None; }
+    };
+
+    // Scan keyboard mapping to find the keycode for this keysym.
+    let setup = conn.setup();
+    let min_kc = setup.min_keycode;
+    let count = setup.max_keycode - min_kc + 1;
+    let mapping = XprotoExt::get_keyboard_mapping(conn, min_kc, count).ok()?.reply().ok()?;
+    let kspk = mapping.keysyms_per_keycode as usize;
+
+    let keycode = mapping.keysyms
+        .chunks(kspk)
+        .enumerate()
+        .find_map(|(i, chunk): (usize, &[u32])| {
+            chunk.iter().any(|&ks| ks == keysym).then_some(min_kc + i as u8)
+        })?;
+
+    tracing::info!(
+        "x11 hotkey: '{hotkey}' → keycode={keycode}, modmask={:#06x}",
+        u16::from(modmask)
+    );
+    Some((modmask, keycode))
+}
+
 pub fn register(app: &AppHandle, accelerator: &str) -> Result<(), String> {
     if is_pure_wayland() {
         tracing::info!("pure wayland (no XWayland): skipping X11 shortcut, portal handles it");
         return Ok(());
     }
-    let app_handle = app.clone();
-    let accel = accelerator.to_string();
-    app.global_shortcut()
-        .on_shortcut(accel.as_str(), move |_app, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
-                toggle_window(&app_handle);
-            }
-        })
-        .map_err(|e| e.to_string())?;
+    #[cfg(target_os = "linux")]
+    spawn_x11_hotkey_thread(app.clone(), accelerator.to_string());
     Ok(())
 }
 
 pub fn toggle_window(app: &AppHandle) {
+    tracing::info!("toggle_window called IS_SHOWN={}", IS_SHOWN.load(Ordering::SeqCst));
     if let Some(w) = app.get_webview_window("bar") {
         if IS_SHOWN.load(Ordering::SeqCst) {
             tracing::info!("toggle_window: hiding");
