@@ -6,11 +6,23 @@ interface Props {
   onClose: () => void;
 }
 
+const CLIPBOARD_OPTIONS: { label: string; value: number }[] = [
+  { label: "Never", value: 0 },
+  { label: "30 seconds", value: 30 },
+  { label: "60 seconds", value: 60 },
+  { label: "90 seconds", value: 90 },
+  { label: "3 minutes", value: 180 },
+];
+
 export default function SettingsPanel({ onClose }: Props) {
   const [autostart, setAutostart] = useState(false);
+  const [clipboardTimeout, setClipboardTimeoutValue] = useState<number>(90);
 
   useEffect(() => {
     api.getAutostartEnabled().then(setAutostart).catch(() => {});
+    api.getConfig()
+      .then((c) => setClipboardTimeoutValue(c.clipboard_timeout_secs))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -32,6 +44,17 @@ export default function SettingsPanel({ onClose }: Props) {
       setAutostart(next);
     } catch {
       // ignore; leave state unchanged
+    }
+  };
+
+  const onClipboardChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const next = Number(e.target.value);
+    const prev = clipboardTimeout;
+    setClipboardTimeoutValue(next);
+    try {
+      await api.setClipboardTimeout(next);
+    } catch {
+      setClipboardTimeoutValue(prev);
     }
   };
 
@@ -77,6 +100,25 @@ export default function SettingsPanel({ onClose }: Props) {
                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autostart ? "translate-x-4" : ""}`}
               />
             </button>
+          </div>
+        </section>
+
+        <div className="text-[11px] uppercase tracking-wide text-ink-tertiary mt-5 mb-2 px-1">
+          Clipboard
+        </div>
+        <section className="flex flex-col space-y-2">
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-bar-surface">
+            <label htmlFor="clipboard-timeout" className="text-ink-primary">Clear after</label>
+            <select
+              id="clipboard-timeout"
+              value={clipboardTimeout}
+              onChange={onClipboardChange}
+              className="bg-bar-surface text-ink-primary border border-bar-border rounded px-2 py-1 text-sm outline-none focus:border-accent"
+            >
+              {CLIPBOARD_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
         </section>
       </div>

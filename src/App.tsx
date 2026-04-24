@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import SearchBar from "./components/SearchBar";
+import SearchBar, { type SearchBarHandle } from "./components/SearchBar";
 import ResultsList from "./components/ResultsList";
 import ActionMenu, { type ActionKey } from "./components/ActionMenu";
 import Toast from "./components/Toast";
@@ -20,11 +20,12 @@ export default function App() {
   const [items, setItems] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; secs: number } | null>(null);
+  const [toast, setToast] = useState<{ msg: string } | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [view, setView] = useState<View>({ kind: "search" });
+  const searchBarRef = useRef<SearchBarHandle>(null);
 
   useEffect(() => {
     if (config && !config.onboarded) {
@@ -35,14 +36,13 @@ export default function App() {
   useEffect(() => { api.getConfig().then(setConfig).catch(() => {}); }, []);
 
   useEffect(() => {
-    const unlisten = listen("window-shown", async () => {
+    const unlisten = listen("window-shown", () => {
       setQuery("");
+      setItems([]);
+      setSelected(0);
       setMenuOpen(false);
       setToast(null);
       setView({ kind: "search" });
-      const recents = await api.getRecents().catch(() => []);
-      setItems(recents);
-      setSelected(0);
     });
     return () => { unlisten.then((f) => f()); };
   }, []);
@@ -63,6 +63,13 @@ export default function App() {
       return { kind: "list" };
     });
   }, [items.length, query]);
+
+  // Restore focus to the search input whenever we're not in detail view.
+  useEffect(() => {
+    if (view.kind !== "detail") {
+      searchBarRef.current?.focus();
+    }
+  }, [view.kind]);
 
   // Resize window for compact vs full mode.
   useEffect(() => {
@@ -86,13 +93,13 @@ export default function App() {
     try {
       if (key === "copy-password") {
         await api.copyField(t.id, "password");
-        setToast({ msg: `Password copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
+        setToast({ msg: "Password copied" });
       } else if (key === "copy-username") {
         await api.copyField(t.id, "username");
-        setToast({ msg: "Username copied", secs: 0 });
+        setToast({ msg: "Username copied" });
       } else if (key === "copy-totp") {
         await api.copyField(t.id, "totp");
-        setToast({ msg: `TOTP copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
+        setToast({ msg: "TOTP copied" });
       } else if (key === "open-in-1p") {
         await api.openIn1Password(t.id);
       } else if (key === "open-url" && t.url) {
@@ -100,34 +107,33 @@ export default function App() {
       }
       setTimeout(() => api.hideWindow().catch(() => {}), 200);
     } catch (e) {
-      setToast({ msg: `Error: ${String(e)}`, secs: 0 });
+      setToast({ msg: `Error: ${String(e)}` });
     }
-  }, [targetItem, config]);
+  }, [targetItem]);
 
-  // Copy from detail view without hiding the window. Still shows the toast
-  // (with clipboard-clear countdown for password/totp).
+  // Copy from detail view without hiding the window.
   const copyFieldNoHide = useCallback(async (field: "username" | "password" | "totp" | "url") => {
     const t = targetItem;
     if (!t) return;
     try {
       if (field === "password") {
         await api.copyField(t.id, "password");
-        setToast({ msg: `Password copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
+        setToast({ msg: "Password copied" });
       } else if (field === "username") {
         await api.copyField(t.id, "username");
-        setToast({ msg: "Username copied", secs: 0 });
+        setToast({ msg: "Username copied" });
       } else if (field === "totp") {
         await api.copyField(t.id, "totp");
-        setToast({ msg: `TOTP copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
+        setToast({ msg: "TOTP copied" });
       } else if (field === "url" && t.url) {
         // Handled on the frontend via navigator.clipboard for URLs.
         await navigator.clipboard.writeText(t.url).catch(() => {});
-        setToast({ msg: "URL copied", secs: 0 });
+        setToast({ msg: "URL copied" });
       }
     } catch (e) {
-      setToast({ msg: `Error: ${String(e)}`, secs: 0 });
+      setToast({ msg: `Error: ${String(e)}` });
     }
-  }, [targetItem, config]);
+  }, [targetItem]);
 
   const open1PNoHide = useCallback(async () => {
     const t = targetItem;
@@ -136,7 +142,7 @@ export default function App() {
       await api.openIn1Password(t.id);
       setTimeout(() => api.hideWindow().catch(() => {}), 200);
     } catch (e) {
-      setToast({ msg: `Error: ${String(e)}`, secs: 0 });
+      setToast({ msg: `Error: ${String(e)}` });
     }
   }, [targetItem]);
 
@@ -213,11 +219,11 @@ export default function App() {
             onCopyField={copyFieldNoHide}
             onOpen1P={open1PNoHide}
           />
-          {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
+          {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
         </>
       ) : (
         <>
-          <SearchBar onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
+          <SearchBar ref={searchBarRef} onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
           {view.kind === "list" && (
             <ResultsList
               items={items}
@@ -227,7 +233,7 @@ export default function App() {
             />
           )}
           {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
-          {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
+          {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
           {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}
         </>
       )}

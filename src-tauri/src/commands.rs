@@ -166,6 +166,16 @@ pub async fn set_autostart_enabled(app: tauri::AppHandle, enabled: bool) -> AppR
 }
 
 #[tauri::command]
+pub async fn set_clipboard_timeout(secs: u64, state: tauri::State<'_, AppState>) -> AppResult<()> {
+    let mut cfg = state.config.lock().unwrap();
+    cfg.clipboard_timeout_secs = secs;
+    let path = Config::default_path();
+    cfg.save_to(&path)
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn signin(password: String, state: tauri::State<'_, AppState>) -> AppResult<()> {
     let _ = password; // v1: delegate to op's interactive prompt via session-token flow in a later pass
     let _ = state;

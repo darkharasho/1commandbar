@@ -107,6 +107,7 @@ pub fn run() {
             commands::signin,
             commands::get_autostart_enabled,
             commands::set_autostart_enabled,
+            commands::set_clipboard_timeout,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,5 @@
 import { Search, Settings } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useDebounce } from "../hooks/useDebounce";
 
@@ -8,12 +8,25 @@ interface Props {
   onOpenSettings: () => void;
 }
 
-export default function SearchBar({ onQueryChange, onOpenSettings }: Props) {
+export interface SearchBarHandle {
+  focus: () => void;
+}
+
+const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
+  { onQueryChange, onOpenSettings },
+  ref,
+) {
   const [value, setValue] = useState("");
   const debounced = useDebounce(value, 30);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { onQueryChange(debounced); }, [debounced, onQueryChange]);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      setTimeout(() => inputRef.current?.focus(), 0);
+    },
+  }), []);
 
   // Re-focus the input every time the window is shown. Without this, after
   // Wayland hides/reshows the window the webview keeps DOM focus on nothing
@@ -21,7 +34,7 @@ export default function SearchBar({ onQueryChange, onOpenSettings }: Props) {
   useEffect(() => {
     const focus = () => {
       setValue("");
-      requestAnimationFrame(() => inputRef.current?.focus());
+      setTimeout(() => inputRef.current?.focus(), 0);
     };
     focus();
     const unlisten = listen("window-shown", focus).catch(() => () => {});
@@ -51,4 +64,6 @@ export default function SearchBar({ onQueryChange, onOpenSettings }: Props) {
       </button>
     </div>
   );
-}
+});
+
+export default SearchBar;

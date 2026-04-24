@@ -1,37 +1,33 @@
+import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface Props {
   message: string;
-  timeoutSecs: number;
   onDone?: () => void;
 }
 
-export default function Toast({ message, timeoutSecs, onDone }: Props) {
-  const [progress, setProgress] = useState(100);
+export default function Toast({ message, onDone }: Props) {
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (timeoutSecs <= 0) return;
-    const start = Date.now();
-    const id = setInterval(() => {
-      const elapsed = (Date.now() - start) / 1000;
-      const pct = Math.max(0, 100 - (elapsed / timeoutSecs) * 100);
-      setProgress(pct);
-      if (pct <= 0) {
-        clearInterval(id);
-        onDone?.();
-      }
-    }, 100);
-    return () => clearInterval(id);
-  }, [timeoutSecs, onDone]);
+    const fadeTimer = setTimeout(() => setVisible(false), 1300);
+    const doneTimer = setTimeout(() => onDone?.(), 1500);
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(doneTimer);
+    };
+  }, [onDone]);
+
+  const showCheck = /copied/i.test(message);
 
   return (
-    <div className="absolute left-0 right-0 bottom-0 px-4 py-2 text-xs bg-bar-surface border-t border-bar-border flex flex-col gap-1 text-ink-primary">
-      <span>{message}</span>
-      {timeoutSecs > 0 && (
-        <div className="h-1 bg-bar-elevated rounded overflow-hidden">
-          <div className="h-full bg-accent transition-[width] duration-100" style={{ width: `${progress}%` }} />
-        </div>
-      )}
+    <div
+      className={`absolute left-1/2 -translate-x-1/2 bottom-3 transition-opacity duration-200 ${visible ? "opacity-100" : "opacity-0"}`}
+    >
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-bar-surface border border-bar-border text-ink-primary text-xs shadow-lg">
+        {showCheck && <Check size={14} className="stroke-accent shrink-0" aria-hidden />}
+        <span>{message}</span>
+      </div>
     </div>
   );
 }

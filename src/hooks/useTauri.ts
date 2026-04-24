@@ -19,4 +19,6 @@ export const api = {
   getAutostartEnabled: () => invoke<boolean>("get_autostart_enabled"),
   setAutostartEnabled: (enabled: boolean) =>
     invoke<void>("set_autostart_enabled", { enabled }),
+  setClipboardTimeout: (secs: number) =>
+    invoke<void>("set_clipboard_timeout", { secs }),
 };
