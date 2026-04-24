@@ -105,13 +105,15 @@ export default function App() {
     });
   }, [items.length, query]);
 
-  // On first op error, run `op signin` automatically — this triggers the
-  // 1Password desktop auth silently without the user needing a terminal.
+  // On first op error, bring 1Password to the foreground so the user can
+  // unlock it. `op signin` via socket is unreliable when 1Password is locked
+  // (connection reset), but opening the URL scheme always works — the OS
+  // hands off to 1Password which shows its unlock UI.
   const autoSigninRef = useRef(false);
   useEffect(() => {
     if (opError && !autoSigninRef.current) {
       autoSigninRef.current = true;
-      api.signin().catch(() => {});
+      api.openUrl("onepassword://").catch(() => {});
     }
     if (!opError) {
       autoSigninRef.current = false;
