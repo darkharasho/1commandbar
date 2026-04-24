@@ -104,6 +104,42 @@ export default function App() {
     }
   }, [targetItem, config]);
 
+  // Copy from detail view without hiding the window. Still shows the toast
+  // (with clipboard-clear countdown for password/totp).
+  const copyFieldNoHide = useCallback(async (field: "username" | "password" | "totp" | "url") => {
+    const t = targetItem;
+    if (!t) return;
+    try {
+      if (field === "password") {
+        await api.copyField(t.id, "password");
+        setToast({ msg: `Password copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
+      } else if (field === "username") {
+        await api.copyField(t.id, "username");
+        setToast({ msg: "Username copied", secs: 0 });
+      } else if (field === "totp") {
+        await api.copyField(t.id, "totp");
+        setToast({ msg: `TOTP copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
+      } else if (field === "url" && t.url) {
+        // Handled on the frontend via navigator.clipboard for URLs.
+        await navigator.clipboard.writeText(t.url).catch(() => {});
+        setToast({ msg: "URL copied", secs: 0 });
+      }
+    } catch (e) {
+      setToast({ msg: `Error: ${String(e)}`, secs: 0 });
+    }
+  }, [targetItem, config]);
+
+  const open1PNoHide = useCallback(async () => {
+    const t = targetItem;
+    if (!t) return;
+    try {
+      await api.openIn1Password(t.id);
+      setTimeout(() => api.hideWindow().catch(() => {}), 200);
+    } catch (e) {
+      setToast({ msg: `Error: ${String(e)}`, secs: 0 });
+    }
+  }, [targetItem]);
+
   const enterDetail = useCallback((id: string) => {
     const found = items.find((i) => i.id === id);
     setView({
@@ -119,15 +155,15 @@ export default function App() {
       if (settingsOpen) return;
 
       if (view.kind === "detail") {
+        // Let ItemDetailView own Up/Down/Enter for field-level nav.
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") return;
+        if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) return;
         if (e.key === "Escape" || e.key === "ArrowLeft") {
           e.preventDefault();
           setView({ kind: "list" });
           return;
         }
-        if (e.key === "Enter" && !menuOpen) {
-          e.preventDefault();
-          runAction(e.shiftKey ? "copy-username" : "copy-password");
-        } else if (e.ctrlKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); runAction("copy-totp"); }
+        if (e.ctrlKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); runAction("copy-totp"); }
         else if (e.ctrlKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); runAction("open-in-1p"); }
         else if (e.ctrlKey && (e.key === "u" || e.key === "U")) { e.preventDefault(); runAction("open-url"); }
         return;
@@ -174,7 +210,8 @@ export default function App() {
             initialTitle={view.title}
             initialVault={view.vault}
             onBack={() => setView({ kind: "list" })}
-            onAction={(k) => runAction(k)}
+            onCopyField={copyFieldNoHide}
+            onOpen1P={open1PNoHide}
           />
           {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
         </>
