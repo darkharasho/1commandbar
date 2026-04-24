@@ -28,6 +28,7 @@ pub fn toggle_window(app: &AppHandle) {
         if visible {
             let _ = w.hide();
         } else {
+            let _ = w.center();
             let _ = w.show();
             let _ = w.set_focus();
             let _ = app.emit("window-shown", ());
