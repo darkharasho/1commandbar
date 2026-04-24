@@ -1,7 +1,6 @@
 import { Check, ChevronDown, ChevronLeft, RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { getVersion } from "@tauri-apps/api/app";
 import { api } from "../hooks/useTauri";
 
@@ -82,7 +81,7 @@ export default function SettingsPanel({ onClose }: Props) {
     setUpdateStatus({ kind: "installing" });
     try {
       await updateStatus.update?.downloadAndInstall();
-      await relaunch();
+      await api.restartClean();
     } catch (e) {
       setUpdateStatus({ kind: "error", msg: String(e) });
     }

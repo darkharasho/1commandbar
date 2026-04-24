@@ -172,6 +172,40 @@ pub async fn set_clipboard_timeout(secs: u64, state: tauri::State<'_, AppState>)
     Ok(())
 }
 
+/// Restart the app with a clean environment. When running from an AppImage,
+/// the normal relaunch() call inherits the current (contaminated) AppImage
+/// env; the AppRun script then piles more AppImage vars on top, leaving the
+/// restarted process with doubled-up LD_LIBRARY_PATH etc. that break op's
+/// daemon connection. This command spawns the AppImage (or current exe) with
+/// env_clear() + only the session vars that actually matter, then exits.
+#[tauri::command]
+pub async fn restart_clean() {
+    const SESSION_VARS: &[&str] = &[
+        "HOME", "USER", "LOGNAME",
+        "XDG_RUNTIME_DIR", "XDG_SESSION_TYPE", "XDG_CURRENT_DESKTOP",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY",
+        "PATH", "LANG", "LC_ALL",
+    ];
+
+    let exe = std::env::var("APPIMAGE")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::env::current_exe().unwrap_or_default());
+
+    let mut cmd = std::process::Command::new(&exe);
+    cmd.env_clear();
+    for var in SESSION_VARS {
+        if let Ok(val) = std::env::var(var) {
+            cmd.env(var, val);
+        }
+    }
+
+    let _ = cmd.spawn();
+    std::process::exit(0);
+}
+
 #[tauri::command]
 pub async fn signin(state: tauri::State<'_, AppState>) -> AppResult<()> {
     op_cli::trigger_signin(&*state.runner).await?;

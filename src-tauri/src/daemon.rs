@@ -122,6 +122,7 @@ pub fn run() {
             commands::get_config,
             commands::mark_onboarded,
             commands::signin,
+            commands::restart_clean,
             commands::get_autostart_enabled,
             commands::set_autostart_enabled,
             commands::set_clipboard_timeout,

@@ -22,4 +22,5 @@ export const api = {
   setClipboardTimeout: (secs: number) =>
     invoke<void>("set_clipboard_timeout", { secs }),
   signin: () => invoke<void>("signin"),
+  restartClean: () => invoke<void>("restart_clean"),
 };
