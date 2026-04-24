@@ -202,6 +202,15 @@ pub async fn restart_clean() {
         }
     }
 
+    // exec() replaces the current process in-place: same PID, same cgroup,
+    // same systemd scope. 1Password's socket auth sees the same credentials
+    // as the original launch, so Desktop Integration keeps working.
+    // Only falls back to spawn+exit if exec itself fails (e.g. permission error).
+    let err = {
+        use std::os::unix::process::CommandExt;
+        cmd.exec()
+    };
+    tracing::error!("restart exec failed ({err}), falling back to spawn+exit");
     let _ = cmd.spawn();
     std::process::exit(0);
 }

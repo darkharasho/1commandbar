@@ -1,5 +1,11 @@
 import * as simpleIcons from "simple-icons";
-import { CreditCard, IdCard, KeyRound, Lock, StickyNote, Vault, type LucideIcon } from "lucide-react";
+import { CreditCard, IdCard, KeyRound, Lock, StickyNote, type LucideIcon } from "lucide-react";
+
+const VaultIcon = () => (
+  <svg viewBox="0 0 256 256" width={14} height={14} fill="currentColor" className="shrink-0 text-ink-tertiary" aria-hidden>
+    <path d="M216,36H40A20,20,0,0,0,20,56V192a20,20,0,0,0,20,20H52v12a12,12,0,0,0,24,0V212H180v12a12,12,0,0,0,24,0V212h12a20,20,0,0,0,20-20V56A20,20,0,0,0,216,36ZM44,188V60H212v52H190.32a44,44,0,1,0,0,24H212v52Zm124-64a20,20,0,1,1-20-20A20,20,0,0,1,168,124Z"/>
+  </svg>
+);
 import type { SearchResult } from "../types";
 
 function categoryIconFor(category: string): LucideIcon {
@@ -13,8 +19,10 @@ function categoryIconFor(category: string): LucideIcon {
 }
 
 function simpleIconSvgFor(title: string): string | undefined {
-  // simple-icons exports as siGithub, siGoogle, etc. — build the key from the title
-  const key = "si" + title.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // simple-icons exports as siGithub, siGoogle, si1password, etc.
+  // slug = lowercase alphanumeric; key = "si" + slug with first char uppercased
+  const slug = title.toLowerCase().replace(/\.(com|net|org|io|co|app|dev|ai|gov|edu|me)(\s|$|\.)/g, " ").replace(/[^a-z0-9]/g, "");
+  const key = "si" + slug.charAt(0).toUpperCase() + slug.slice(1);
   const icon = (simpleIcons as Record<string, { svg: string } | undefined>)[key];
   return icon?.svg;
 }
@@ -62,7 +70,7 @@ export default function ItemRow({ item, selected }: Props) {
         <span className="text-[13px] text-ink-secondary truncate flex items-center gap-1">
           {item.username || "(no username)"}
           <span className="text-ink-tertiary">·</span>
-          <Vault size={11} className="stroke-ink-tertiary shrink-0" aria-hidden />
+          <VaultIcon />
           {item.vault}
         </span>
       </div>
