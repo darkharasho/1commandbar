@@ -84,10 +84,9 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
 
-          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | grep -v '\.tar\.gz' | head -1)
-          TARBALL="${APPIMAGE}.tar.gz"
-          SIG_FILE="${TARBALL}.sig"
-          TARBALL_NAME=$(basename "$TARBALL")
+          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | grep -v '\.sig' | head -1)
+          SIG_FILE="${APPIMAGE}.sig"
+          APPIMAGE_NAME=$(basename "$APPIMAGE")
           SIG=$(cat "$SIG_FILE")
           PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -99,7 +98,7 @@ jobs:
             "platforms": {
               "linux-x86_64": {
                 "signature": "$SIG",
-                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/$TARBALL_NAME"
+                "url": "https://github.com/${{ github.repository }}/releases/download/$TAG/$APPIMAGE_NAME"
               }
             }
           }
@@ -118,14 +117,12 @@ jobs:
             NOTES=$(git log --pretty=format:"- %s")
           fi
 
-          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | grep -v '\.tar\.gz' | head -1)
-          TARBALL="${APPIMAGE}.tar.gz"
-          SIG_FILE="${TARBALL}.sig"
+          APPIMAGE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage | grep -v '\.sig' | head -1)
+          SIG_FILE="${APPIMAGE}.sig"
 
           gh release create "$TAG" \
             --title "$TAG" \
             --notes "$NOTES" \
             "$APPIMAGE" \
-            "$TARBALL" \
             "$SIG_FILE" \
             "latest.json"
