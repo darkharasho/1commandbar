@@ -26,18 +26,6 @@ export default function App() {
 
   useEffect(() => { api.getConfig().then(setConfig).catch(() => {}); }, []);
 
-  // Force webkit to evict cached GPU layers when switching between main and
-  // settings views. Without this, KWin/Wayland retains the previous view's
-  // pixels as a ghost behind the current content.
-  useEffect(() => {
-    const el = document.documentElement;
-    el.style.transform = "translateZ(0)";
-    const id = requestAnimationFrame(() => {
-      el.style.transform = "";
-    });
-    return () => cancelAnimationFrame(id);
-  }, [settingsOpen]);
-
   useEffect(() => {
     const unlisten = listen("window-shown", async () => {
       setQuery("");
