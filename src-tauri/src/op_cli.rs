@@ -31,26 +31,32 @@ impl OpRunner for SystemOpRunner {
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
 
-        cmd.env_clear().env("PATH", augmented).env("HOME", &home);
-
-        // Pass through session vars that op needs to find the 1Password socket
-        // and authenticate via the desktop app.
-        for var in &[
-            "XDG_RUNTIME_DIR",
-            "XDG_CONFIG_HOME",
-            "XDG_DATA_HOME",
-            "DBUS_SESSION_BUS_ADDRESS",
-            "WAYLAND_DISPLAY",
-            "DISPLAY",
-            "USER",
-            "LOGNAME",
-            "LANG",
-            "LC_ALL",
-        ] {
-            if let Ok(val) = std::env::var(var) {
-                cmd.env(var, val);
+        // Inherit almost everything so op can reach the 1Password daemon socket.
+        // Strip only AppImage/linuxdeploy vars that redirect shared libs and GTK
+        // modules into the bundle — those break op's D-Bus/socket connection.
+        const STRIP: &[&str] = &[
+            "LD_LIBRARY_PATH",
+            "LD_PRELOAD",
+            "APPIMAGE",
+            "APPDIR",
+            "APPIMAGE_EXTRACT_AND_RUN",
+            "ARGV0",
+            "OWD",
+            "GIO_MODULE_DIR",
+            "GIO_EXTRA_MODULES",
+            "GSETTINGS_SCHEMA_DIR",
+            "GTK_PATH",
+            "GTK_IM_MODULE_FILE",
+            "GDK_PIXBUF_MODULEDIR",
+            "GDK_PIXBUF_MODULE_FILE",
+            "GDK_BACKEND",
+        ];
+        for (k, v) in std::env::vars() {
+            if !STRIP.contains(&k.as_str()) {
+                cmd.env(&k, v);
             }
         }
+        cmd.env("PATH", augmented);
 
         cmd.args(args);
         let output = cmd.output().await.map_err(|e| {
