@@ -15,7 +15,7 @@
         "label": "bar",
         "title": "1commandbar",
         "width": 440,
-        "height": 360,
+        "height": 64,
         "resizable": false,
         "decorations": false,
         "transparent": false,
