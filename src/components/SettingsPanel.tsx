@@ -1,5 +1,7 @@
-import { Check, ChevronDown, ChevronLeft, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { api } from "../hooks/useTauri";
 
 interface Props {
@@ -14,10 +16,19 @@ const CLIPBOARD_OPTIONS: { label: string; value: number }[] = [
   { label: "3 minutes", value: 180 },
 ];
 
+type UpdateStatus =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "upToDate" }
+  | { kind: "available"; version: string; update: Awaited<ReturnType<typeof checkForUpdate>> }
+  | { kind: "installing" }
+  | { kind: "error"; msg: string };
+
 export default function SettingsPanel({ onClose }: Props) {
   const [autostart, setAutostart] = useState(false);
   const [clipboardTimeout, setClipboardTimeoutValue] = useState<number>(90);
   const [clipboardOpen, setClipboardOpen] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: "idle" });
   const clipboardWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,6 +57,31 @@ export default function SettingsPanel({ onClose }: Props) {
       setAutostart(next);
     } catch {
       // ignore; leave state unchanged
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setUpdateStatus({ kind: "checking" });
+    try {
+      const update = await checkForUpdate();
+      if (update?.available) {
+        setUpdateStatus({ kind: "available", version: update.version, update });
+      } else {
+        setUpdateStatus({ kind: "upToDate" });
+      }
+    } catch {
+      setUpdateStatus({ kind: "error", msg: "Could not check for updates" });
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    if (updateStatus.kind !== "available") return;
+    setUpdateStatus({ kind: "installing" });
+    try {
+      await updateStatus.update?.downloadAndInstall();
+      await relaunch();
+    } catch (e) {
+      setUpdateStatus({ kind: "error", msg: String(e) });
     }
   };
 
@@ -162,6 +198,52 @@ export default function SettingsPanel({ onClose }: Props) {
                 </ul>
               )}
             </div>
+          </div>
+        </section>
+
+        <div className="text-[11px] uppercase tracking-wide text-ink-tertiary mt-5 mb-2 px-1">
+          Updates
+        </div>
+        <section className="flex flex-col space-y-2">
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-bar-surface">
+            <div className="flex flex-col">
+              <span className="text-ink-primary">Check for updates</span>
+              {updateStatus.kind === "upToDate" && (
+                <span className="text-xs text-ink-secondary mt-0.5">You're up to date</span>
+              )}
+              {updateStatus.kind === "available" && (
+                <span className="text-xs text-ink-secondary mt-0.5">v{updateStatus.version} available</span>
+              )}
+              {updateStatus.kind === "error" && (
+                <span className="text-xs text-red-400 mt-0.5">{updateStatus.msg}</span>
+              )}
+              {updateStatus.kind === "installing" && (
+                <span className="text-xs text-ink-secondary mt-0.5">Installing…</span>
+              )}
+            </div>
+            {updateStatus.kind === "available" ? (
+              <button
+                type="button"
+                onClick={handleInstallUpdate}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-accent text-white text-sm hover:opacity-90 transition-opacity"
+              >
+                Install & Restart
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCheckUpdate}
+                disabled={updateStatus.kind === "checking" || updateStatus.kind === "installing"}
+                className="p-1.5 rounded hover:bg-bar-elevated transition-colors disabled:opacity-40"
+                aria-label="Check for updates"
+              >
+                <RefreshCw
+                  size={18}
+                  className={`stroke-ink-secondary ${updateStatus.kind === "checking" ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+              </button>
+            )}
           </div>
         </section>
       </div>

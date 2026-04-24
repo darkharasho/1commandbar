@@ -37,5 +37,12 @@
     "shortDescription": "1Password command bar for Linux",
     "longDescription": "A global-hotkey command bar for 1Password on Linux, backed by the op CLI."
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "pubkey": "REPLACE_WITH_PUBKEY_FROM_TAURI_SIGNER_GENERATE",
+      "endpoints": [
+        "https://github.com/darkharasho/1commandbar/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }
