@@ -54,7 +54,9 @@ export default function App() {
       return;
     }
     let cancelled = false;
-    api.search(query).then((r) => { if (!cancelled) { setItems(r); setSelected(0); } }).catch(() => {});
+    api.search(query)
+      .then((r) => { if (!cancelled) { setItems(r); setSelected(0); } })
+      .catch((e) => { if (!cancelled) setToast({ msg: String(e) }); });
     return () => { cancelled = true; };
   }, [query]);
 
@@ -215,7 +217,7 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
     >
       <div
         className={
-          "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border shadow-2xl overflow-hidden flex flex-col " +
+          "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border overflow-hidden flex flex-col " +
           "transition-[max-height] duration-200 ease-in-out " +
           (view.kind === "search" && !settingsOpen ? "max-h-[58px]" : "max-h-[360px]")
         }

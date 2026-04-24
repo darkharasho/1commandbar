@@ -21,8 +21,10 @@ impl OpRunner for SystemOpRunner {
         // where 1Password CLI (op) is installed.
         let home = std::env::var("HOME").unwrap_or_default();
         let base_path = std::env::var("PATH").unwrap_or_default();
-        let augmented =
-            format!("{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/opt/1Password:{base_path}");
+        // /run/host/usr/bin covers rpm-ostree layered packages on Bazzite/Fedora Atomic
+        let augmented = format!(
+            "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
+        );
         cmd.env("PATH", augmented).args(args);
         let output = cmd.output().await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
