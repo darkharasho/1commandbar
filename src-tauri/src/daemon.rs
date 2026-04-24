@@ -22,6 +22,12 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            // Ensure the app icon is present in the system icon theme so the
+            // app launcher / portal / taskbar shows the correct icon even after
+            // an in-app update (the updater replaces $APPIMAGE in-place but
+            // does not re-run the icon extraction that GearLever did on install).
+            install_app_icon();
+
             let config_path = Config::default_path();
             let config = Config::load_from(&config_path).unwrap_or_default();
             let hotkey_str = config.hotkey.clone();
@@ -113,6 +119,19 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn install_app_icon() {
+    let Some(home) = std::env::var_os("HOME") else {
+        return;
+    };
+    let icon_dir = std::path::PathBuf::from(&home).join(".local/share/icons/hicolor/128x128/apps");
+    if std::fs::create_dir_all(&icon_dir).is_ok() {
+        let _ = std::fs::write(
+            icon_dir.join("1commandbar.png"),
+            include_bytes!("../icons/128x128.png"),
+        );
+    }
 }
 
 async fn run_ipc_listener(app: AppHandle) {

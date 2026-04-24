@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { SearchResult } from "../types";
 import ItemRow from "./ItemRow";
+import { api } from "../hooks/useTauri";
 
 interface Props {
   items: SearchResult[];
@@ -38,7 +39,15 @@ export default function ResultsList({ items, selectedIndex, onSelectedChange, on
     return (
       <div className="flex flex-col items-center justify-center h-full px-6 py-8 gap-2 text-center">
         <span className="text-xs text-red-400 leading-snug">{opError}</span>
-        <span className="text-xs text-ink-tertiary">Unlock 1Password and make sure CLI integration is enabled under Settings → Developer. Retrying automatically…</span>
+        <span className="text-xs text-ink-tertiary">Make sure 1Password is open and CLI integration is enabled under Settings → Developer. Retrying automatically…</span>
+        <button
+          type="button"
+          className="mt-1 text-xs text-accent underline hover:opacity-80 transition-opacity"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => api.openUrl("onepassword://").catch(() => {})}
+        >
+          Open 1Password
+        </button>
       </div>
     );
   }

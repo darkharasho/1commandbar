@@ -36,6 +36,15 @@ export default function App() {
 
   useEffect(() => { api.getConfig().then(setConfig).catch(() => {}); }, []);
 
+  // Surface a one-time warning when the XDG portal returns 0 shortcuts —
+  // the user needs to confirm the binding in System Settings → Keyboard → Shortcuts.
+  useEffect(() => {
+    const unlisten = listen("hotkey-unbound", () => {
+      setToast({ msg: "Hotkey not configured — open System Settings → Keyboard → Shortcuts to set it up" });
+    });
+    return () => { unlisten.then((f) => f()); };
+  }, []);
+
   useEffect(() => {
     const unlisten = listen("window-shown", () => {
       setQuery("");

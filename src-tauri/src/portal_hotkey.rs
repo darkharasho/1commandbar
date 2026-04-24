@@ -2,7 +2,7 @@
 
 use ashpd::desktop::global_shortcuts::{GlobalShortcuts, NewShortcut};
 use futures_util::StreamExt;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 /// Ensure the XDG portal can derive a stable `app_id` for persistent hotkey
 /// binding across restarts.
@@ -159,7 +159,7 @@ pub async fn run(app: AppHandle) {
             .preferred_trigger(Some("ALT+SHIFT+space"))];
 
     tracing::info!("portal_hotkey: calling bind_shortcuts(toggle, ALT+SHIFT+space)");
-    match proxy.bind_shortcuts(&session, &shortcuts, None).await {
+    let bound_count = match proxy.bind_shortcuts(&session, &shortcuts, None).await {
         Ok(request) => match request.response() {
             Ok(resp) => {
                 let bound: Vec<(&str, &str)> = resp
@@ -172,6 +172,7 @@ pub async fn run(app: AppHandle) {
                     resp.shortcuts().len(),
                     bound
                 );
+                resp.shortcuts().len()
             }
             Err(e) => {
                 tracing::warn!("portal_hotkey: bind_shortcuts response error: {e}");
@@ -182,6 +183,17 @@ pub async fn run(app: AppHandle) {
             tracing::warn!("portal_hotkey: bind_shortcuts call failed: {e}");
             return;
         }
+    };
+
+    // When the portal returns 0 shortcuts the hotkey is not registered —
+    // typically because the compositor treats this as a new app and needs the
+    // user to confirm the binding in System Settings → Keyboard → Shortcuts.
+    // Emit an event so the frontend can surface a one-time warning.
+    if bound_count == 0 {
+        tracing::warn!(
+            "portal_hotkey: no shortcuts bound — user may need to confirm in System Settings"
+        );
+        let _ = app.emit("hotkey-unbound", ());
     }
 
     tracing::info!("portal_hotkey: listener running, awaiting activations");
