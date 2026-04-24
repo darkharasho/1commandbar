@@ -44,8 +44,6 @@ const STRIP: &[&str] = &[
 #[async_trait]
 impl OpRunner for SystemOpRunner {
     async fn run(&self, args: &[&str]) -> AppResult<String> {
-        use tokio::io::AsyncReadExt;
-
         let home = std::env::var("HOME").unwrap_or_default();
         let base_path = std::env::var("PATH").unwrap_or_default();
         // /run/host/usr/bin covers rpm-ostree layered packages on Bazzite/Fedora Atomic
@@ -53,54 +51,96 @@ impl OpRunner for SystemOpRunner {
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
 
-        // Spawn op inside a PTY so isatty() returns true for the op process.
-        // The 1Password daemon gates its auth dialog on isatty(); without a PTY
-        // it silently times out with "connecting to desktop app timed out".
-        let mut pty = pty_process::Pty::new()
-            .map_err(|e| AppError::Other(format!("pty alloc failed: {e}")))?;
-        pty.resize(pty_process::Size::new(24, 80)).ok();
-
-        let mut cmd = pty_process::Command::new("op");
-        for k in STRIP {
-            cmd.env_remove(k);
-        }
-        cmd.env("PATH", &augmented);
-        cmd.args(args);
-
-        let pts = pty
-            .pts()
-            .map_err(|e| AppError::Other(format!("pty pts failed: {e}")))?;
-        let mut child = cmd.spawn(&pts).map_err(|e| {
-            if matches!(e, pty_process::Error::Io(ref io) if io.kind() == std::io::ErrorKind::NotFound) {
-                AppError::OpNotFound
-            } else {
-                AppError::Other(format!("spawn failed: {e}"))
+        // Try PTY first so isatty() returns true — the 1Password daemon uses
+        // isatty() to decide whether to surface its auth dialog. Fall back to
+        // a plain subprocess if PTY setup fails (e.g. first AppImage launch
+        // before the session is fully initialised).
+        match run_pty(args, &augmented).await {
+            // Legitimate op errors: propagate directly, no point retrying.
+            ok @ Ok(_)
+            | ok @ Err(AppError::OpNotSignedIn)
+            | ok @ Err(AppError::OpFailed(_)) => ok,
+            // PTY infrastructure or binary-not-found failure: retry without PTY.
+            Err(e) => {
+                tracing::warn!("PTY run failed ({e}), retrying with plain subprocess");
+                run_plain(args, &augmented).await
             }
-        })?;
-        drop(pts);
-
-        // Drain output and wait concurrently to avoid PTY buffer deadlock.
-        let (read_buf, wait_result) = tokio::join!(
-            async {
-                let mut buf = Vec::new();
-                let _ = pty.read_to_end(&mut buf).await;
-                buf
-            },
-            child.wait()
-        );
-
-        let status = wait_result.map_err(AppError::Io)?;
-        // PTY line discipline converts \n → \r\n; normalise back.
-        let output = String::from_utf8_lossy(&read_buf).replace("\r\n", "\n");
-
-        if !status.success() {
-            if output.contains("not currently signed in") || output.contains("session expired") {
-                return Err(AppError::OpNotSignedIn);
-            }
-            return Err(AppError::OpFailed(clean_op_stderr(output.trim())));
         }
-        Ok(output)
     }
+}
+
+async fn run_pty(args: &[&str], augmented: &str) -> AppResult<String> {
+    use tokio::io::AsyncReadExt;
+
+    let mut pty = pty_process::Pty::new()
+        .map_err(|e| AppError::Other(format!("pty alloc: {e}")))?;
+    pty.resize(pty_process::Size::new(24, 80)).ok();
+
+    let mut cmd = pty_process::Command::new("op");
+    for k in STRIP {
+        cmd.env_remove(k);
+    }
+    cmd.env("PATH", augmented);
+    cmd.args(args);
+
+    let pts = pty
+        .pts()
+        .map_err(|e| AppError::Other(format!("pty pts: {e}")))?;
+    let mut child = cmd.spawn(&pts).map_err(|e| {
+        if matches!(e, pty_process::Error::Io(ref io) if io.kind() == std::io::ErrorKind::NotFound) {
+            AppError::OpNotFound
+        } else {
+            AppError::Other(format!("pty spawn: {e}"))
+        }
+    })?;
+    drop(pts);
+
+    let (read_buf, wait_result) = tokio::join!(
+        async {
+            let mut buf = Vec::new();
+            let _ = pty.read_to_end(&mut buf).await;
+            buf
+        },
+        child.wait()
+    );
+
+    let status = wait_result.map_err(AppError::Io)?;
+    // PTY line discipline converts \n → \r\n; normalise back.
+    let output = String::from_utf8_lossy(&read_buf).replace("\r\n", "\n");
+
+    if !status.success() {
+        if output.contains("not currently signed in") || output.contains("session expired") {
+            return Err(AppError::OpNotSignedIn);
+        }
+        return Err(AppError::OpFailed(clean_op_stderr(output.trim())));
+    }
+    Ok(output)
+}
+
+async fn run_plain(args: &[&str], augmented: &str) -> AppResult<String> {
+    let mut cmd = tokio::process::Command::new("op");
+    for k in STRIP {
+        cmd.env_remove(k);
+    }
+    cmd.env("PATH", augmented);
+    cmd.args(args);
+
+    let output = cmd.output().await.map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            AppError::OpNotFound
+        } else {
+            AppError::Io(e)
+        }
+    })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        if stderr.contains("not currently signed in") || stderr.contains("session expired") {
+            return Err(AppError::OpNotSignedIn);
+        }
+        return Err(AppError::OpFailed(clean_op_stderr(stderr.trim())));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
