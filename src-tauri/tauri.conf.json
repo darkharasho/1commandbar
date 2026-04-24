@@ -16,6 +16,8 @@
         "title": "1commandbar",
         "width": 440,
         "height": 64,
+        "minWidth": 440,
+        "minHeight": 64,
         "resizable": false,
         "decorations": false,
         "transparent": false,
