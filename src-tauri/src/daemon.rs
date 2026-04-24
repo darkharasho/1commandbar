@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Manager};
 
 pub fn run() {
     tauri::Builder::default()
@@ -45,16 +45,6 @@ pub fn run() {
             app.manage(state);
 
             hotkey::register(app.handle(), &hotkey_str).ok();
-
-            // Auto-hide when the command bar loses focus (click outside / focus steal).
-            if let Some(w) = app.get_webview_window("bar") {
-                let hide_target = w.clone();
-                w.on_window_event(move |event| {
-                    if let WindowEvent::Focused(false) = event {
-                        let _ = hide_target.hide();
-                    }
-                });
-            }
 
             // System tray icon with Show/Quit menu.
             let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;

@@ -27,6 +27,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [view, setView] = useState<View>({ kind: "search" });
   const searchBarRef = useRef<SearchBarHandle>(null);
+  // Suppresses the blur-based auto-hide for a short window after the bar is
+  // shown. Without this, the OS focus handoff during show triggers a spurious
+  // blur event that immediately re-hides the window before the user sees it.
+  const justShownRef = useRef(false);
 
   useEffect(() => {
     if (config && !config.onboarded) {
@@ -47,6 +51,9 @@ export default function App() {
 
   useEffect(() => {
     const unlisten = listen("window-shown", () => {
+      justShownRef.current = true;
+      setTimeout(() => { justShownRef.current = false; }, 500);
+
       setQuery("");
       setItems([]);
       setSelected(0);
@@ -54,6 +61,7 @@ export default function App() {
       setToast(null);
       setOpError(null);
       setView({ kind: "search" });
+      searchBarRef.current?.focus();
       // Pre-warm the vault so first search is instant and auth errors surface immediately.
       api.refreshCache()
         .then(() => setOpError(null))
@@ -62,11 +70,13 @@ export default function App() {
     return () => { unlisten.then((f) => f()); };
   }, []);
 
-  // Belt-and-suspenders hide: the Rust WindowEvent::Focused(false) handler
-  // doesn't always fire on KDE Wayland when clicking the desktop. The JS
-  // window blur event uses a different path and covers those missed cases.
+  // Auto-hide when the bar loses focus (click outside). Guarded against
+  // spurious blur events that fire during the OS focus handoff on show.
   useEffect(() => {
-    const onBlur = () => api.hideWindow().catch(() => {});
+    const onBlur = () => {
+      if (justShownRef.current) return;
+      api.hideWindow().catch(() => {});
+    };
     window.addEventListener("blur", onBlur);
     return () => window.removeEventListener("blur", onBlur);
   }, []);
@@ -93,13 +103,6 @@ export default function App() {
       return { kind: "list" };
     });
   }, [items.length, query]);
-
-  // Restore focus to the search input whenever we're not in detail view.
-  useEffect(() => {
-    if (view.kind !== "detail") {
-      searchBarRef.current?.focus();
-    }
-  }, [view.kind]);
 
   // On first op error, run `op signin` automatically — this triggers the
   // 1Password desktop auth silently without the user needing a terminal.
