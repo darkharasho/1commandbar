@@ -283,9 +283,16 @@ fn clean_op_stderr(msg: &str) -> String {
 }
 
 /// Trigger the 1Password desktop app auth popup by running `op signin`.
-/// With CLI integration enabled this is a no-op if already authed, or it
-/// asks the desktop app to show its unlock/authorize dialog.
+/// Skips silently if `op whoami` confirms we are already authenticated —
+/// this prevents spurious access-request dialogs when the JS side calls
+/// signin defensively on every auth error even though a prior call already
+/// unlocked the vault.
 pub async fn trigger_signin(runner: &dyn OpRunner) -> AppResult<()> {
+    if detect_auth(runner).await != AuthMode::NotSignedIn {
+        tracing::debug!("trigger_signin: already authenticated, skipping");
+        return Ok(());
+    }
+
     // Try to find a saved account shorthand so we can pass --account.
     // If account list itself fails we still attempt a bare `op signin`.
     #[derive(serde::Deserialize)]
