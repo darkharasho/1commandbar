@@ -28,8 +28,12 @@ pub fn toggle_window(app: &AppHandle) {
         if visible {
             let _ = w.hide();
         } else {
-            let _ = w.center();
+            // On Wayland a plain center() is often a no-op for reused windows;
+            // a size-tick forces KWin to re-run its placement policy (centered).
             let _ = w.show();
+            let _ = w.set_size(tauri::LogicalSize::new(440u32, 201u32));
+            let _ = w.set_size(tauri::LogicalSize::new(440u32, 200u32));
+            let _ = w.center();
             let _ = w.set_focus();
             let _ = app.emit("window-shown", ());
         }
