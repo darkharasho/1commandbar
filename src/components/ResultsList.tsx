@@ -8,11 +8,10 @@ interface Props {
   onSelectedChange: (idx: number) => void;
   onItemClick?: (id: string) => void;
   opError?: string | null;
-  signingIn?: boolean;
   query?: string;
 }
 
-export default function ResultsList({ items, selectedIndex, onSelectedChange, onItemClick, opError, signingIn, query }: Props) {
+export default function ResultsList({ items, selectedIndex, onSelectedChange, onItemClick, opError, query }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLDivElement>(null);
 
@@ -36,18 +35,10 @@ export default function ResultsList({ items, selectedIndex, onSelectedChange, on
   }, [items, selectedIndex, onSelectedChange]);
 
   if (opError) {
-    if (signingIn) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full px-6 py-8 gap-2 text-center">
-          <span className="text-xs text-ink-secondary leading-snug">Connecting to 1Password…</span>
-          <span className="text-xs text-ink-tertiary">Approve the request in the 1Password app.</span>
-        </div>
-      );
-    }
     return (
       <div className="flex flex-col items-center justify-center h-full px-6 py-8 gap-2 text-center">
         <span className="text-xs text-red-400 leading-snug">{opError}</span>
-        <span className="text-xs text-ink-tertiary">Make sure 1Password is running and CLI integration is enabled in Settings → Developer.</span>
+        <span className="text-xs text-ink-tertiary">Unlock 1Password and make sure CLI integration is enabled under Settings → Developer. Retrying automatically…</span>
       </div>
     );
   }

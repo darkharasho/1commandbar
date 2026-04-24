@@ -22,7 +22,6 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string } | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -45,7 +44,6 @@ export default function App() {
       setMenuOpen(false);
       setToast(null);
       setOpError(null);
-      setSigningIn(false);
       setView({ kind: "search" });
       // Pre-warm the vault so first search is instant and auth errors surface immediately.
       api.refreshCache()
@@ -85,25 +83,29 @@ export default function App() {
     }
   }, [view.kind]);
 
-  // Auto-reauth: trigger `op signin` whenever an auth error surfaces.
-  // op signin asks the 1Password desktop app to show its auth popup; once
-  // approved it warms the cache and we clear the error.
+  // Auto-reauth: poll until the op error clears (user unlocks 1Password / enables CLI integration).
   useEffect(() => {
-    if (!opError) { setSigningIn(false); return; }
-    let cancelled = false;
-    setSigningIn(true);
-    api.signin()
-      .then(() => { if (!cancelled) { setOpError(null); setSigningIn(false); } })
-      .catch((e) => { if (!cancelled) { setOpError(String(e)); setSigningIn(false); } });
-    return () => { cancelled = true; };
+    if (!opError) return;
+    const id = setInterval(() => {
+      api.refreshCache()
+        .then(() => setOpError(null))
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(id);
   }, [opError]);
 
-  // Resize the OS window to match content so transparency gaps never show.
-  // Base on items/query/opError directly so the resize is never one frame behind.
+  // Resize the OS window to match the card height, coordinated with the CSS transition.
+  // Expanding: resize first so the window is large enough before the card grows.
+  // Collapsing: let the 200ms CSS transition finish first, then shrink the window.
+  const isCollapsed = !settingsOpen && view.kind !== "detail" && items.length === 0 && query === "" && !opError;
   useEffect(() => {
-    const collapsed = !settingsOpen && view.kind !== "detail" && items.length === 0 && query === "" && !opError;
-    api.resizeWindow(collapsed ? 200 : 360).catch(() => {});
-  }, [view.kind, settingsOpen, items.length, query, opError]);
+    if (!isCollapsed) {
+      api.resizeWindow(360).catch(() => {});
+      return;
+    }
+    const id = setTimeout(() => api.resizeWindow(200).catch(() => {}), 220);
+    return () => clearTimeout(id);
+  }, [isCollapsed]);
 
 
 const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
@@ -238,9 +240,7 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
         className={
           "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border overflow-hidden flex flex-col " +
           "transition-[height] duration-200 ease-in-out " +
-          (!settingsOpen && view.kind !== "detail" && items.length === 0 && query === "" && !opError
-            ? "h-[58px]"
-            : "h-[360px]")
+          (isCollapsed ? "h-[58px]" : "h-[360px]")
         }
       >
         {settingsOpen ? (
@@ -273,7 +273,6 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
                     onSelectedChange={setSelected}
                     onItemClick={enterDetail}
                     opError={opError}
-                    signingIn={signingIn}
                     query={query}
                   />
                 )}
