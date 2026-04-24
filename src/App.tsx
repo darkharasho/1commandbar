@@ -77,7 +77,7 @@ export default function App() {
     if (settingsOpen || view.kind === "detail" || view.kind === "list") {
       api.resizeWindow(360).catch(() => {});
     } else {
-      api.resizeWindow(64).catch(() => {});
+      api.resizeWindow(200).catch(() => {});
     }
   }, [view.kind, settingsOpen]);
 
@@ -207,7 +207,10 @@ export default function App() {
   return (
     <div
       key={settingsOpen ? "settings" : "main"}
-      className="relative h-screen w-screen overflow-hidden shadow-2xl"
+      className={
+        "relative h-screen w-screen overflow-hidden shadow-2xl " +
+        (view.kind === "search" && !settingsOpen ? "flex flex-col justify-center" : "")
+      }
       style={{ backgroundColor: "#1e1e1e" }}
     >
       {settingsOpen ? (
