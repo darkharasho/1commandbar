@@ -28,15 +28,15 @@ export default function ActionMenu({ onAction, onClose }: Props) {
   }, [onClose]);
 
   return (
-    <div className="absolute right-2 bottom-2 w-64 rounded-lg bg-black/80 border border-white/10 shadow-xl backdrop-blur p-1">
+    <div className="absolute right-2 bottom-2 w-64 rounded-lg bg-bar-surface border border-bar-border shadow-xl p-1">
       {ACTIONS.map((a) => (
         <button
           key={a.key}
           onClick={() => onAction(a.key)}
-          className="w-full flex items-center justify-between px-3 py-2 text-sm rounded hover:bg-white/10"
+          className="w-full flex items-center justify-between px-3 py-2 text-sm text-ink-primary rounded hover:bg-bar-elevated"
         >
           <span>{a.label}</span>
-          <span className="font-mono text-xs text-white/50 bg-white/10 rounded px-1.5 py-0.5">
+          <span className="font-mono text-[11px] text-ink-tertiary bg-bar-elevated rounded px-1.5 py-0.5">
             {a.shortcut}
           </span>
         </button>

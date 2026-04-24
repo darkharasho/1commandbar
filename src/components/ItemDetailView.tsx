@@ -5,7 +5,7 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  SquareArrowOutUpRight,
+  ArrowUpRight,
 } from "lucide-react";
 import { api } from "../hooks/useTauri";
 import type { ItemDetail } from "../types";
@@ -75,51 +75,56 @@ export default function ItemDetailView({
   const totp = item ? findTotp(item) : null;
   const url = item ? primaryUrl(item) : null;
 
+  const title = item?.title ?? initialTitle;
+  const vaultName = item?.vault.name ?? initialVault;
+
   return (
-    <div className="flex flex-col h-full" style={{ backgroundColor: "#14161c" }}>
-      <div className="flex items-center gap-3 px-3 h-12 border-b border-white/10">
+    <div className="flex flex-col h-full bg-bar-bg">
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-bar-border">
         <button
           type="button"
           aria-label="Back"
           onMouseDown={(e) => e.preventDefault()}
           onClick={onBack}
-          className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+          className="shrink-0 p-1.5 rounded hover:bg-bar-elevated transition-colors"
         >
-          <ChevronLeft size={18} className="stroke-white/70" aria-hidden />
+          <ChevronLeft size={18} className="stroke-ink-secondary" aria-hidden />
         </button>
-        <div className="flex flex-col min-w-0 flex-1">
-          <span className="font-medium truncate text-sm">
-            {item?.title ?? initialTitle}
+        <div className="flex flex-col min-w-0 flex-1 text-center">
+          <span className="text-[15px] font-medium text-ink-primary truncate">
+            {title}
+          </span>
+          <span className="text-[12px] text-ink-secondary truncate">
+            {vaultName}
           </span>
         </div>
-        <span className="text-xs text-white/50 truncate shrink-0">
-          {item?.vault.name ?? initialVault}
-        </span>
+        {/* spacer to balance the back button */}
+        <span className="w-7 shrink-0" aria-hidden />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto px-5 py-4">
         {error && (
-          <div className="px-4 py-3 text-sm text-red-400">{error}</div>
+          <div className="text-sm text-red-400">{error}</div>
         )}
         {!item && !error && (
-          <div className="flex flex-col gap-3 p-4">
-            <div className="h-12 rounded bg-white/5 animate-pulse" />
-            <div className="h-12 rounded bg-white/5 animate-pulse" />
-            <div className="h-12 rounded bg-white/5 animate-pulse" />
+          <div className="flex flex-col gap-2">
+            <div className="h-14 rounded-lg bg-bar-surface animate-pulse" />
+            <div className="h-14 rounded-lg bg-bar-surface animate-pulse" />
+            <div className="h-14 rounded-lg bg-bar-surface animate-pulse" />
           </div>
         )}
         {item && (
-          <div className="flex flex-col">
+          <div className="flex flex-col space-y-2">
             {username && (
-              <FieldRow
-                label="Username"
+              <FieldCard
+                label="USERNAME"
                 value={username}
                 onCopy={() => onAction("copy-username")}
               />
             )}
             {password && (
-              <FieldRow
-                label="Password"
+              <FieldCard
+                label="PASSWORD"
                 value={password}
                 mono
                 concealed={!revealed}
@@ -129,31 +134,29 @@ export default function ItemDetailView({
               />
             )}
             {totp && (
-              <FieldRow
-                label="One-Time Password"
+              <FieldCard
+                label="ONE-TIME CODE"
                 value={totp}
                 mono
+                large
                 onCopy={() => onAction("copy-totp")}
               />
             )}
             {url && (
-              <FieldRow
-                label="Website"
+              <FieldCard
+                label="WEBSITE"
                 value={url}
                 onCopy={undefined}
                 trailing={
                   <button
                     type="button"
                     aria-label="Open URL"
+                    title="Open website"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => onAction("open-url")}
-                    className="shrink-0 p-1.5 rounded hover:bg-white/10 transition-colors"
+                    className="shrink-0 p-1.5 rounded text-ink-tertiary hover:text-ink-primary hover:bg-bar-elevated transition-colors"
                   >
-                    <ExternalLink
-                      size={14}
-                      className="stroke-white/70"
-                      aria-hidden
-                    />
+                    <ExternalLink size={16} aria-hidden />
                   </button>
                 }
               />
@@ -162,14 +165,14 @@ export default function ItemDetailView({
         )}
       </div>
 
-      <div className="border-t border-white/10 px-3 py-2">
+      <div className="px-5 py-3 border-t border-bar-border">
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onAction("open-in-1p")}
-          className="flex items-center justify-center gap-2 w-full h-9 rounded bg-white/5 hover:bg-white/10 text-sm text-white/80 transition-colors"
+          className="flex items-center justify-center gap-2 w-full h-10 rounded-lg bg-bar-surface hover:bg-bar-elevated text-sm text-ink-primary transition-colors"
         >
-          <SquareArrowOutUpRight size={14} aria-hidden />
+          <ArrowUpRight size={16} className="stroke-ink-secondary" aria-hidden />
           Open in 1Password
         </button>
       </div>
@@ -177,10 +180,11 @@ export default function ItemDetailView({
   );
 }
 
-interface FieldRowProps {
+interface FieldCardProps {
   label: string;
   value: string;
   mono?: boolean;
+  large?: boolean;
   concealed?: boolean;
   revealed?: boolean;
   onCopy?: () => void;
@@ -188,41 +192,43 @@ interface FieldRowProps {
   trailing?: React.ReactNode;
 }
 
-function FieldRow({
+function FieldCard({
   label,
   value,
   mono,
+  large,
   concealed,
   revealed,
   onCopy,
   onToggleReveal,
   trailing,
-}: FieldRowProps) {
+}: FieldCardProps) {
   const display = concealed ? "•".repeat(Math.min(value.length, 12)) : value;
+  const valueCls =
+    "truncate text-ink-primary " +
+    (large ? "text-[20px] " : "text-[15px] ") +
+    (mono ? "font-mono" : "");
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/5">
+    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-bar-surface">
       <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-xs text-white/50">{label}</span>
-        <span
-          className={
-            "truncate text-sm " + (mono ? "font-mono text-white/90" : "text-white/90")
-          }
-        >
-          {display || " "}
+        <span className="text-[11px] uppercase tracking-wide text-ink-tertiary">
+          {label}
         </span>
+        <span className={valueCls}>{display || " "}</span>
       </div>
       {onToggleReveal && (
         <button
           type="button"
           aria-label={revealed ? "Hide" : "Reveal"}
+          title={revealed ? "Hide" : "Reveal"}
           onMouseDown={(e) => e.preventDefault()}
           onClick={onToggleReveal}
-          className="shrink-0 p-1.5 rounded hover:bg-white/10 transition-colors"
+          className="shrink-0 p-1.5 rounded text-ink-tertiary hover:text-ink-primary hover:bg-bar-elevated transition-colors"
         >
           {revealed ? (
-            <EyeOff size={14} className="stroke-white/70" aria-hidden />
+            <EyeOff size={16} aria-hidden />
           ) : (
-            <Eye size={14} className="stroke-white/70" aria-hidden />
+            <Eye size={16} aria-hidden />
           )}
         </button>
       )}
@@ -230,11 +236,12 @@ function FieldRow({
         <button
           type="button"
           aria-label={`Copy ${label}`}
+          title="Copy to clipboard"
           onMouseDown={(e) => e.preventDefault()}
           onClick={onCopy}
-          className="shrink-0 p-1.5 rounded hover:bg-white/10 transition-colors"
+          className="shrink-0 p-1.5 rounded text-ink-tertiary hover:text-ink-primary hover:bg-bar-elevated transition-colors"
         >
-          <Copy size={14} className="stroke-white/70" aria-hidden />
+          <Copy size={16} aria-hidden />
         </button>
       )}
       {trailing}

@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../hooks/useTauri";
 
@@ -36,37 +36,50 @@ export default function SettingsPanel({ onClose }: Props) {
   };
 
   return (
-    <div
-      className="h-full w-full p-6 text-sm overflow-y-auto"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Settings</h2>
+    <div className="flex flex-col h-full w-full bg-bar-bg text-sm">
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-bar-border">
+        <button
+          type="button"
+          aria-label="Back"
+          onClick={onClose}
+          className="shrink-0 p-1.5 rounded hover:bg-bar-elevated transition-colors"
+        >
+          <ChevronLeft size={18} className="stroke-ink-secondary" aria-hidden />
+        </button>
+        <div className="flex-1 text-center">
+          <span className="text-[15px] font-medium text-ink-primary">Settings</span>
+        </div>
         <button
           type="button"
           aria-label="Close settings"
           onClick={onClose}
-          className="p-1 rounded hover:bg-white/10 transition-colors"
+          className="shrink-0 p-1.5 rounded hover:bg-bar-elevated transition-colors"
         >
-          <X size={18} className="stroke-white/70" aria-hidden />
+          <X size={18} className="stroke-ink-secondary" aria-hidden />
         </button>
       </div>
 
-      <section>
-        <div className="flex items-center justify-between py-2">
-          <label className="text-white/90">Launch at login</label>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={autostart}
-            onClick={toggleAutostart}
-            className={`w-10 h-6 rounded-full relative transition-colors ${autostart ? "bg-accent" : "bg-white/20"}`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autostart ? "translate-x-4" : ""}`}
-            />
-          </button>
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="text-[11px] uppercase tracking-wide text-ink-tertiary mb-2 px-1">
+          General
         </div>
-      </section>
+        <section className="flex flex-col space-y-2">
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-bar-surface">
+            <label className="text-ink-primary">Launch at login</label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autostart}
+              onClick={toggleAutostart}
+              className={`w-10 h-6 rounded-full relative transition-colors ${autostart ? "bg-accent" : "bg-ink-muted"}`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autostart ? "translate-x-4" : ""}`}
+              />
+            </button>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

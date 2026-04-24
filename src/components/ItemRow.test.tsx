@@ -17,6 +17,6 @@ describe("ItemRow", () => {
 
   it("applies selected styles when selected", () => {
     const { container } = render(<ItemRow item={item} selected={true} />);
-    expect(container.firstChild).toHaveClass("bg-accent/15");
+    expect(container.firstChild).toHaveClass("bg-bar-elevated");
   });
 });

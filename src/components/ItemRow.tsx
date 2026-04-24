@@ -21,19 +21,37 @@ export default function ItemRow({ item, selected }: Props) {
   return (
     <div
       className={
-        "flex items-center gap-3 px-4 h-14 cursor-default " +
+        "relative flex items-center gap-3 px-5 py-3 h-[60px] cursor-default transition-colors " +
         (selected
-          ? "bg-accent/15 border-l-2 border-accent"
-          : "border-l-2 border-transparent")
+          ? "bg-bar-elevated"
+          : "bg-transparent hover:bg-bar-surface")
       }
     >
-      <Icon size={16} className="stroke-white/70 shrink-0" aria-hidden />
-      <div className="flex flex-col min-w-0">
-        <span className="font-medium truncate">{item.title}</span>
-        <span className="text-xs text-white/60 truncate">
+      {selected && (
+        <span
+          aria-hidden
+          className="absolute left-0 top-1 bottom-1 w-[2px] rounded-r bg-accent/50"
+        />
+      )}
+      <Icon size={18} className="stroke-ink-secondary shrink-0" aria-hidden />
+      <div className="flex flex-col min-w-0 flex-1">
+        <span className="text-[16px] font-medium text-ink-primary truncate">
+          {item.title}
+        </span>
+        <span className="text-[13px] text-ink-secondary truncate">
           {item.username || "(no username)"} · {item.vault}
         </span>
       </div>
+      {selected && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="font-mono text-[11px] text-ink-tertiary bg-bar-surface rounded px-1.5 py-0.5">
+            ⏎
+          </span>
+          <span className="font-mono text-[11px] text-ink-tertiary bg-bar-surface rounded px-1.5 py-0.5">
+            →
+          </span>
+        </div>
+      )}
     </div>
   );
 }

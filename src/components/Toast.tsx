@@ -25,10 +25,10 @@ export default function Toast({ message, timeoutSecs, onDone }: Props) {
   }, [timeoutSecs, onDone]);
 
   return (
-    <div className="absolute left-0 right-0 bottom-0 px-4 py-2 text-xs bg-black/60 flex flex-col gap-1">
+    <div className="absolute left-0 right-0 bottom-0 px-4 py-2 text-xs bg-bar-surface border-t border-bar-border flex flex-col gap-1 text-ink-primary">
       <span>{message}</span>
       {timeoutSecs > 0 && (
-        <div className="h-1 bg-white/10 rounded overflow-hidden">
+        <div className="h-1 bg-bar-elevated rounded overflow-hidden">
           <div className="h-full bg-accent transition-[width] duration-100" style={{ width: `${progress}%` }} />
         </div>
       )}
