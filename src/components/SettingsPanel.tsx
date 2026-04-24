@@ -1,5 +1,5 @@
-import { ChevronLeft, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, ChevronDown, ChevronLeft, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../hooks/useTauri";
 
 interface Props {
@@ -17,6 +17,8 @@ const CLIPBOARD_OPTIONS: { label: string; value: number }[] = [
 export default function SettingsPanel({ onClose }: Props) {
   const [autostart, setAutostart] = useState(false);
   const [clipboardTimeout, setClipboardTimeoutValue] = useState<number>(90);
+  const [clipboardOpen, setClipboardOpen] = useState(false);
+  const clipboardWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.getAutostartEnabled().then(setAutostart).catch(() => {});
@@ -47,8 +49,8 @@ export default function SettingsPanel({ onClose }: Props) {
     }
   };
 
-  const onClipboardChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const next = Number(e.target.value);
+  const onClipboardSelect = async (next: number) => {
+    setClipboardOpen(false);
     const prev = clipboardTimeout;
     setClipboardTimeoutValue(next);
     try {
@@ -57,6 +59,20 @@ export default function SettingsPanel({ onClose }: Props) {
       setClipboardTimeoutValue(prev);
     }
   };
+
+  useEffect(() => {
+    if (!clipboardOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (!clipboardWrapRef.current) return;
+      if (!clipboardWrapRef.current.contains(e.target as Node)) {
+        setClipboardOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [clipboardOpen]);
+
+  const currentLabel = CLIPBOARD_OPTIONS.find((o) => o.value === clipboardTimeout)?.label ?? `${clipboardTimeout}s`;
 
   return (
     <div className="flex flex-col h-full w-full bg-bar-bg text-sm">
@@ -108,17 +124,44 @@ export default function SettingsPanel({ onClose }: Props) {
         </div>
         <section className="flex flex-col space-y-2">
           <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-bar-surface">
-            <label htmlFor="clipboard-timeout" className="text-ink-primary">Clear after</label>
-            <select
-              id="clipboard-timeout"
-              value={clipboardTimeout}
-              onChange={onClipboardChange}
-              className="bg-bar-surface text-ink-primary border border-bar-border rounded px-2 py-1 text-sm outline-none focus:border-accent"
-            >
-              {CLIPBOARD_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <span className="text-ink-primary">Clear after</span>
+            <div ref={clipboardWrapRef} className="relative">
+              <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={clipboardOpen}
+                onClick={() => setClipboardOpen((v) => !v)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-bar-elevated text-ink-primary text-sm hover:bg-bar-border transition-colors"
+              >
+                <span>{currentLabel}</span>
+                <ChevronDown size={14} className="stroke-ink-secondary" aria-hidden />
+              </button>
+              {clipboardOpen && (
+                <ul
+                  role="listbox"
+                  className="absolute right-0 top-full mt-1 w-36 rounded-lg bg-bar-surface border border-bar-border shadow-xl py-1 z-10"
+                >
+                  {CLIPBOARD_OPTIONS.map((o) => {
+                    const active = o.value === clipboardTimeout;
+                    return (
+                      <li key={o.value} role="option" aria-selected={active}>
+                        <button
+                          type="button"
+                          onClick={() => onClipboardSelect(o.value)}
+                          className={
+                            "w-full flex items-center justify-between px-3 py-1.5 text-sm text-left " +
+                            (active ? "text-ink-primary bg-bar-elevated" : "text-ink-primary hover:bg-bar-elevated")
+                          }
+                        >
+                          <span>{o.label}</span>
+                          {active && <Check size={14} className="stroke-ink-primary" aria-hidden />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </section>
       </div>
