@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, WindowEvent};
 
 pub fn run() {
     tauri::Builder::default()
@@ -45,6 +45,25 @@ pub fn run() {
             app.manage(state);
 
             hotkey::register(app.handle(), &hotkey_str).ok();
+
+            // Hide when the window loses OS focus (user clicks outside).
+            // Guarded against stale Focused(false) events that are queued
+            // from the previous hide and arrive shortly after a new show().
+            if let Some(w) = app.get_webview_window("bar") {
+                let hide_target = w.clone();
+                w.on_window_event(move |event| match event {
+                    WindowEvent::Focused(true) => {
+                        crate::hotkey::GOT_FOCUS_AFTER_SHOW
+                            .store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                    WindowEvent::Focused(false) => {
+                        if !crate::hotkey::is_stale_focus_loss() {
+                            let _ = hide_target.hide();
+                        }
+                    }
+                    _ => {}
+                });
+            }
 
             // System tray icon with Show/Quit menu.
             let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;

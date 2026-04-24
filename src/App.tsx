@@ -52,7 +52,7 @@ export default function App() {
   useEffect(() => {
     const unlisten = listen("window-shown", () => {
       justShownRef.current = true;
-      setTimeout(() => { justShownRef.current = false; }, 500);
+      setTimeout(() => { justShownRef.current = false; }, 300);
 
       setQuery("");
       setItems([]);
