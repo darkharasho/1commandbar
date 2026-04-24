@@ -14,7 +14,7 @@ export default function ResultsList({ items, selectedIndex, onSelectedChange, on
   const selectedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    selectedRef.current?.scrollIntoView({ block: "nearest" });
+    selectedRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [selectedIndex]);
 
   useEffect(() => {
