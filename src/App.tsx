@@ -62,6 +62,15 @@ export default function App() {
     return () => { unlisten.then((f) => f()); };
   }, []);
 
+  // Belt-and-suspenders hide: the Rust WindowEvent::Focused(false) handler
+  // doesn't always fire on KDE Wayland when clicking the desktop. The JS
+  // window blur event uses a different path and covers those missed cases.
+  useEffect(() => {
+    const onBlur = () => api.hideWindow().catch(() => {});
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []);
+
   useEffect(() => {
     if (query === "") {
       setItems([]);
