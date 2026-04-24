@@ -17,24 +17,42 @@ pub struct SystemOpRunner;
 impl OpRunner for SystemOpRunner {
     async fn run(&self, args: &[&str]) -> AppResult<String> {
         let mut cmd = tokio::process::Command::new("op");
-        // AppImage drops most of the user's PATH; inject the common locations
-        // where 1Password CLI (op) is installed.
+
+        // Build a clean environment for op: only the vars it needs.
+        // The AppImage wrapper (linuxdeploy-plugin-gtk) poisons the inherited
+        // env with GIO_MODULE_DIR, GSETTINGS_SCHEMA_DIR, GTK_PATH, etc. that
+        // point into the AppImage's own libs — this breaks op's D-Bus/socket
+        // connection to the 1Password desktop app.  env_clear() + explicit
+        // allow-list is more reliable than chasing every bad var with env_remove.
         let home = std::env::var("HOME").unwrap_or_default();
         let base_path = std::env::var("PATH").unwrap_or_default();
         // /run/host/usr/bin covers rpm-ostree layered packages on Bazzite/Fedora Atomic
         let augmented = format!(
             "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/run/host/usr/bin:/opt/1Password:{base_path}"
         );
-        // Clear AppImage-specific vars so op uses system paths and libs.
-        // APPIMAGE/APPDIR cause some binaries to mis-resolve runtime paths;
-        // LD_LIBRARY_PATH would make op load the AppImage's bundled libs.
-        cmd.env("PATH", augmented)
-            .env_remove("LD_LIBRARY_PATH")
-            .env_remove("LD_PRELOAD")
-            .env_remove("APPIMAGE")
-            .env_remove("APPDIR")
-            .env_remove("APPIMAGE_EXTRACT_AND_RUN")
-            .args(args);
+
+        cmd.env_clear()
+            .env("PATH", augmented)
+            .env("HOME", &home);
+
+        // Pass through session vars that op needs to find the 1Password socket
+        // and authenticate via the desktop app.
+        for var in &[
+            "XDG_RUNTIME_DIR",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "WAYLAND_DISPLAY",
+            "DISPLAY",
+            "USER",
+            "LOGNAME",
+            "LANG",
+            "LC_ALL",
+        ] {
+            if let Ok(val) = std::env::var(var) {
+                cmd.env(var, val);
+            }
+        }
+
+        cmd.args(args);
         let output = cmd.output().await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 AppError::OpNotFound
