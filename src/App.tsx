@@ -21,6 +21,7 @@ export default function App() {
   const [selected, setSelected] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string } | null>(null);
+  const [opError, setOpError] = useState<string | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -42,7 +43,12 @@ export default function App() {
       setSelected(0);
       setMenuOpen(false);
       setToast(null);
+      setOpError(null);
       setView({ kind: "search" });
+      // Pre-warm the vault so first search is instant and auth errors surface immediately.
+      api.refreshCache()
+        .then(() => setOpError(null))
+        .catch((e) => setOpError(String(e)));
     });
     return () => { unlisten.then((f) => f()); };
   }, []);
@@ -55,8 +61,8 @@ export default function App() {
     }
     let cancelled = false;
     api.search(query)
-      .then((r) => { if (!cancelled) { setItems(r); setSelected(0); } })
-      .catch((e) => { if (!cancelled) setToast({ msg: String(e) }); });
+      .then((r) => { if (!cancelled) { setItems(r); setSelected(0); setOpError(null); } })
+      .catch((e) => { if (!cancelled) { const msg = String(e); setOpError(msg); setToast({ msg }); } });
     return () => { cancelled = true; };
   }, [query]);
 
@@ -244,13 +250,15 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
                 {toast && <Toast message={toast.msg} onDone={() => setToast(null)} />}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-hidden relative">
+              <div className="flex-1 min-h-[80px] overflow-hidden relative">
                 {view.kind === "list" && (
                   <ResultsList
                     items={items}
                     selectedIndex={selected}
                     onSelectedChange={setSelected}
                     onItemClick={enterDetail}
+                    opError={opError}
+                    query={query}
                   />
                 )}
                 {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
