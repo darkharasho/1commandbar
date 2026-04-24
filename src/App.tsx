@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import SearchBar from "./components/SearchBar";
 import ResultsList from "./components/ResultsList";
@@ -6,8 +6,14 @@ import ActionMenu, { type ActionKey } from "./components/ActionMenu";
 import Toast from "./components/Toast";
 import Onboarding from "./components/Onboarding";
 import SettingsPanel from "./components/SettingsPanel";
+import ItemDetailView from "./components/ItemDetailView";
 import { api } from "./hooks/useTauri";
 import type { AppConfig, SearchResult } from "./types";
+
+type View =
+  | { kind: "search" }
+  | { kind: "list" }
+  | { kind: "detail"; id: string; title: string; vault: string };
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -18,6 +24,8 @@ export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [view, setView] = useState<View>({ kind: "search" });
+
   useEffect(() => {
     if (config && !config.onboarded) {
       setShowOnboarding(true);
@@ -31,6 +39,7 @@ export default function App() {
       setQuery("");
       setMenuOpen(false);
       setToast(null);
+      setView({ kind: "search" });
       const recents = await api.getRecents().catch(() => []);
       setItems(recents);
       setSelected(0);
@@ -45,47 +54,110 @@ export default function App() {
     return () => { cancelled = true; };
   }, [query]);
 
-  const runAction = useCallback(async (key: ActionKey) => {
+  // Auto-transition between search and list based on items, but never leave detail.
+  useEffect(() => {
+    setView((v) => {
+      if (v.kind === "detail") return v;
+      if (items.length > 0) return { kind: "list" };
+      if (query === "") return { kind: "search" };
+      return { kind: "list" };
+    });
+  }, [items.length, query]);
+
+  // Resize window for compact vs full mode.
+  useEffect(() => {
+    if (settingsOpen) return;
+    const h = view.kind === "search" ? 80 : 420;
+    api.resizeWindow(h).catch(() => {});
+  }, [view.kind, settingsOpen]);
+
+  const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
+    if (view.kind === "detail") {
+      const found = items.find((i) => i.id === view.id);
+      return { id: view.id, url: found?.url ?? null };
+    }
     const item = items[selected];
-    if (!item) return;
+    return item ? { id: item.id, url: item.url } : null;
+  }, [view, items, selected]);
+
+  const runAction = useCallback(async (key: ActionKey) => {
+    const t = targetItem;
+    if (!t) return;
     try {
       if (key === "copy-password") {
-        await api.copyField(item.id, "password");
+        await api.copyField(t.id, "password");
         setToast({ msg: `Password copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
       } else if (key === "copy-username") {
-        await api.copyField(item.id, "username");
+        await api.copyField(t.id, "username");
         setToast({ msg: "Username copied", secs: 0 });
       } else if (key === "copy-totp") {
-        await api.copyField(item.id, "totp");
+        await api.copyField(t.id, "totp");
         setToast({ msg: `TOTP copied — clears in ${config?.clipboard_timeout_secs ?? 90}s`, secs: config?.clipboard_timeout_secs ?? 90 });
       } else if (key === "open-in-1p") {
-        await api.openIn1Password(item.id);
-      } else if (key === "open-url" && item.url) {
-        await api.openUrl(item.url);
+        await api.openIn1Password(t.id);
+      } else if (key === "open-url" && t.url) {
+        await api.openUrl(t.url);
       }
       setTimeout(() => api.hideWindow().catch(() => {}), 200);
     } catch (e) {
       setToast({ msg: `Error: ${String(e)}`, secs: 0 });
     }
-  }, [items, selected, config]);
+  }, [targetItem, config]);
+
+  const enterDetail = useCallback((id: string) => {
+    const found = items.find((i) => i.id === id);
+    setView({
+      kind: "detail",
+      id,
+      title: found?.title ?? "",
+      vault: found?.vault ?? "",
+    });
+  }, [items]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (settingsOpen) return;
-      if (e.key === "Escape") { api.hideWindow().catch(() => {}); return; }
-      if (e.key === "Enter" && !menuOpen) {
-        e.preventDefault();
-        runAction(e.shiftKey ? "copy-username" : "copy-password");
-      } else if ((e.key === "Tab" || e.key === "ArrowRight") && !menuOpen) {
-        e.preventDefault();
-        setMenuOpen(true);
-      } else if (e.ctrlKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); runAction("copy-totp"); }
-      else if (e.ctrlKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); runAction("open-in-1p"); }
-      else if (e.ctrlKey && (e.key === "u" || e.key === "U")) { e.preventDefault(); runAction("open-url"); }
+
+      if (view.kind === "detail") {
+        if (e.key === "Escape" || e.key === "ArrowLeft") {
+          e.preventDefault();
+          setView({ kind: "list" });
+          return;
+        }
+        if (e.key === "Enter" && !menuOpen) {
+          e.preventDefault();
+          runAction(e.shiftKey ? "copy-username" : "copy-password");
+        } else if (e.ctrlKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); runAction("copy-totp"); }
+        else if (e.ctrlKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); runAction("open-in-1p"); }
+        else if (e.ctrlKey && (e.key === "u" || e.key === "U")) { e.preventDefault(); runAction("open-url"); }
+        return;
+      }
+
+      if (view.kind === "list") {
+        if (e.key === "Escape") { api.hideWindow().catch(() => {}); return; }
+        if (e.key === "ArrowRight" && !menuOpen && items[selected]) {
+          e.preventDefault();
+          enterDetail(items[selected].id);
+          return;
+        }
+        if (e.key === "Enter" && !menuOpen) {
+          e.preventDefault();
+          runAction(e.shiftKey ? "copy-username" : "copy-password");
+        } else if (e.key === "Tab" && !menuOpen) {
+          e.preventDefault();
+          setMenuOpen(true);
+        } else if (e.ctrlKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); runAction("copy-totp"); }
+        else if (e.ctrlKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); runAction("open-in-1p"); }
+        else if (e.ctrlKey && (e.key === "u" || e.key === "U")) { e.preventDefault(); runAction("open-url"); }
+        return;
+      }
+
+      // search view
+      if (e.key === "Escape") { api.hideWindow().catch(() => {}); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [menuOpen, runAction, settingsOpen]);
+  }, [menuOpen, runAction, settingsOpen, view, items, selected, enterDetail]);
 
   return (
     <div
@@ -95,10 +167,28 @@ export default function App() {
     >
       {settingsOpen ? (
         <SettingsPanel onClose={() => setSettingsOpen(false)} />
+      ) : view.kind === "detail" ? (
+        <>
+          <ItemDetailView
+            itemId={view.id}
+            initialTitle={view.title}
+            initialVault={view.vault}
+            onBack={() => setView({ kind: "list" })}
+            onAction={(k) => runAction(k)}
+          />
+          {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
+        </>
       ) : (
         <>
           <SearchBar onQueryChange={setQuery} onOpenSettings={() => setSettingsOpen(true)} />
-          <ResultsList items={items} selectedIndex={selected} onSelectedChange={setSelected} />
+          {view.kind === "list" && (
+            <ResultsList
+              items={items}
+              selectedIndex={selected}
+              onSelectedChange={setSelected}
+              onItemClick={enterDetail}
+            />
+          )}
           {menuOpen && <ActionMenu onAction={(k) => { setMenuOpen(false); runAction(k); }} onClose={() => setMenuOpen(false)} />}
           {toast && <Toast message={toast.msg} timeoutSecs={toast.secs} onDone={() => setToast(null)} />}
           {showOnboarding && <Onboarding isWayland={true} onDismiss={() => setShowOnboarding(false)} />}

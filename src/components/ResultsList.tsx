@@ -6,9 +6,10 @@ interface Props {
   items: SearchResult[];
   selectedIndex: number;
   onSelectedChange: (idx: number) => void;
+  onItemClick?: (id: string) => void;
 }
 
-export default function ResultsList({ items, selectedIndex, onSelectedChange }: Props) {
+export default function ResultsList({ items, selectedIndex, onSelectedChange, onItemClick }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,7 +37,13 @@ export default function ResultsList({ items, selectedIndex, onSelectedChange }: 
       className="max-h-96 overflow-y-auto outline-none"
     >
       {items.map((item, i) => (
-        <div key={item.id} role="option" aria-selected={i === selectedIndex}>
+        <div
+          key={item.id}
+          role="option"
+          aria-selected={i === selectedIndex}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onItemClick?.(item.id)}
+        >
           <ItemRow item={item} selected={i === selectedIndex} />
         </div>
       ))}

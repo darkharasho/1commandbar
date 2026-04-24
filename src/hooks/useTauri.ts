@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppConfig, CopyField, SearchResult } from "../types";
+import type { AppConfig, CopyField, ItemDetail, SearchResult } from "../types";
 
 export const api = {
   search: (query: string) => invoke<SearchResult[]>("search", { query }),
@@ -11,6 +11,10 @@ export const api = {
     invoke<void>("open_in_1password", { itemId }),
   openUrl: (url: string) => invoke<void>("open_url", { url }),
   hideWindow: () => invoke<void>("hide_window"),
+  getItemDetail: (itemId: string) =>
+    invoke<ItemDetail>("get_item_detail", { itemId }),
+  resizeWindow: (height: number) =>
+    invoke<void>("resize_window", { height }),
   getConfig: () => invoke<AppConfig>("get_config"),
   getAutostartEnabled: () => invoke<boolean>("get_autostart_enabled"),
   setAutostartEnabled: (enabled: boolean) =>

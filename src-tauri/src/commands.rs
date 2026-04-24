@@ -108,6 +108,25 @@ pub async fn hide_window(window: tauri::Window) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub async fn get_item_detail(
+    item_id: String,
+    state: tauri::State<'_, AppState>,
+) -> AppResult<op_cli::ItemDetail> {
+    op_cli::get_item(&*state.runner, &item_id).await
+}
+
+#[tauri::command]
+pub async fn resize_window(height: u32, window: tauri::Window) -> AppResult<()> {
+    let size = window
+        .outer_size()
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    window
+        .set_size(tauri::PhysicalSize::new(size.width, height))
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn get_config(state: tauri::State<'_, AppState>) -> AppResult<Config> {
     Ok(state.config.lock().unwrap().clone())
 }

@@ -100,6 +100,8 @@ pub fn run() {
             commands::open_in_1password,
             commands::open_url,
             commands::hide_window,
+            commands::get_item_detail,
+            commands::resize_window,
             commands::get_config,
             commands::mark_onboarded,
             commands::signin,
