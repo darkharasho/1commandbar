@@ -75,6 +75,15 @@ export default function App() {
     }
   }, [view.kind]);
 
+  // Resize the OS window to match content so transparency gaps never show.
+  useEffect(() => {
+    if (settingsOpen || view.kind === "detail" || view.kind === "list") {
+      api.resizeWindow(360).catch(() => {});
+    } else {
+      api.resizeWindow(200).catch(() => {});
+    }
+  }, [view.kind, settingsOpen]);
+
 
 const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
     if (view.kind === "detail") {
@@ -207,8 +216,8 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
       <div
         className={
           "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border shadow-2xl overflow-hidden flex flex-col " +
-          "transition-[height] duration-200 ease-in-out " +
-          (view.kind === "search" && !settingsOpen ? "h-[58px]" : "h-[360px]")
+          "transition-[max-height] duration-200 ease-in-out " +
+          (view.kind === "search" && !settingsOpen ? "max-h-[58px]" : "max-h-[360px]")
         }
       >
         {settingsOpen ? (

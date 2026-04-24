@@ -16,8 +16,16 @@ pub struct SystemOpRunner;
 #[async_trait]
 impl OpRunner for SystemOpRunner {
     async fn run(&self, args: &[&str]) -> AppResult<String> {
-        let output = tokio::process::Command::new("op")
-            .args(args)
+        let mut cmd = tokio::process::Command::new("op");
+        // AppImage drops most of the user's PATH; inject the common locations
+        // where 1Password CLI (op) is installed.
+        let home = std::env::var("HOME").unwrap_or_default();
+        let base_path = std::env::var("PATH").unwrap_or_default();
+        let augmented = format!(
+            "{home}/.local/bin:/usr/local/bin:/usr/bin:/bin:/opt/1Password:{base_path}"
+        );
+        cmd.env("PATH", augmented).args(args);
+        let output = cmd
             .output()
             .await
             .map_err(|e| {

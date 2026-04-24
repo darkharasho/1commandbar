@@ -120,9 +120,6 @@ pub async fn resize_window(height: u32, window: tauri::Window) -> AppResult<()> 
     window
         .set_size(tauri::LogicalSize::new(440u32, height))
         .map_err(|e| AppError::Other(e.to_string()))?;
-    window
-        .center()
-        .map_err(|e| AppError::Other(e.to_string()))?;
     Ok(())
 }
 
