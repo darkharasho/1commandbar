@@ -26,8 +26,8 @@ export default function Toast({ message, duration, onDone }: Props) {
     <div
       className={`fixed left-1/2 -translate-x-1/2 bottom-3 z-50 transition-opacity duration-200 ${visible ? "opacity-100" : "opacity-0"}`}
     >
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-bar-surface border border-bar-border text-ink-primary text-xs shadow-lg">
-        {showCheck && <Check size={14} className="stroke-accent shrink-0" aria-hidden />}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent text-white text-xs font-medium shadow-lg">
+        {showCheck && <Check size={14} className="stroke-white shrink-0" aria-hidden />}
         <span>{message}</span>
       </div>
     </div>

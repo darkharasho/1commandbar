@@ -161,7 +161,7 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
       } else if (key === "open-url" && t.url) {
         await api.openUrl(t.url);
       }
-      setTimeout(() => api.hideWindow().catch(() => {}), 200);
+      setTimeout(() => api.hideWindow().catch(() => {}), 800);
     } catch (e) {
       setToast({ msg: `Error: ${String(e)}` });
     }
@@ -196,7 +196,7 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
     if (!t) return;
     try {
       await api.openIn1Password(t.id);
-      setTimeout(() => api.hideWindow().catch(() => {}), 200);
+      setTimeout(() => api.hideWindow().catch(() => {}), 800);
     } catch (e) {
       setToast({ msg: `Error: ${String(e)}` });
     }
