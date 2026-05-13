@@ -40,11 +40,11 @@ const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
     return () => { unlisten.then((f) => f()); };
   }, []);
 
-  // Clear the input and focus on show. The 150ms timeout is a fallback for
-  // compositors that don't reliably fire the window focus event.
+  // Focus on show. The 150ms timeout is a fallback for compositors that don't
+  // reliably fire the window focus event. The input value is preserved across
+  // hide→show so the user resumes their last search.
   useEffect(() => {
     const onShown = () => {
-      setValue("");
       setTimeout(() => inputRef.current?.focus(), 150);
     };
     onShown();

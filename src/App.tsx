@@ -49,12 +49,10 @@ export default function App() {
   useEffect(() => {
     const unlisten = listen("window-shown", () => {
       console.log("[1cb] window-shown");
-      setQuery("");
-      setItems([]);
-      setSelected(0);
+      // Preserve query/items/selected/view across hide→show so the user lands
+      // back where they left off. Only transient UI state is reset.
       setMenuOpen(false);
       setToast(null);
-      setView({ kind: "search" });
       searchBarRef.current?.focus();
       // Pre-warm the vault so first search is instant and auth errors surface immediately.
       // Do NOT clear opError here — let refreshCache clear it on success only.
