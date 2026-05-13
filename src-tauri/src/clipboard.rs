@@ -16,6 +16,28 @@ pub struct SystemClipboard;
 
 #[async_trait]
 impl ClipboardBackend for SystemClipboard {
+    // On Linux, arboard's selection owner dies the moment the Clipboard struct
+    // is dropped — so a plain `set_text` followed by Clipboard::drop leaves the
+    // X11/Wayland selection empty by the time the user pastes. Spawn a detached
+    // thread that calls `set().wait().text(...)`, which holds ownership until
+    // another client takes it (e.g. our own clear, or a paste consumed by the
+    // clipboard manager).
+    #[cfg(target_os = "linux")]
+    fn set(&self, value: &str) -> AppResult<()> {
+        use arboard::SetExtLinux;
+        let value = value.to_string();
+        std::thread::spawn(move || {
+            let mut cb = match arboard::Clipboard::new() {
+                Ok(c) => c,
+                Err(e) => { tracing::error!("clipboard: new failed: {e}"); return; }
+            };
+            if let Err(e) = cb.set().wait().text(value) {
+                tracing::error!("clipboard: set().wait().text failed: {e}");
+            }
+        });
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
     fn set(&self, value: &str) -> AppResult<()> {
         let mut cb = arboard::Clipboard::new().map_err(|e| AppError::Clipboard(e.to_string()))?;
         cb.set_text(value.to_string())
@@ -27,9 +49,7 @@ impl ClipboardBackend for SystemClipboard {
             .map_err(|e| AppError::Clipboard(e.to_string()))
     }
     fn clear(&self) -> AppResult<()> {
-        let mut cb = arboard::Clipboard::new().map_err(|e| AppError::Clipboard(e.to_string()))?;
-        cb.set_text(String::new())
-            .map_err(|e| AppError::Clipboard(e.to_string()))
+        self.set("")
     }
 }
 
