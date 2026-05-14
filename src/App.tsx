@@ -118,18 +118,10 @@ export default function App() {
     return () => clearInterval(id);
   }, [opError]);
 
-  // Resize the OS window to match the card height, coordinated with the CSS transition.
-  // Expanding: resize first so the window is large enough before the card grows.
-  // Collapsing: let the 200ms CSS transition finish first, then shrink the window.
+  // The OS window stays at its max height; only the inner card animates.
+  // This avoids the jagged "stair-step" caused by the WM animating the window
+  // resize on a different clock than the CSS height transition.
   const isCollapsed = !settingsOpen && view.kind !== "detail" && items.length === 0 && query === "" && !opError;
-  useEffect(() => {
-    if (!isCollapsed) {
-      api.resizeWindow(360).catch(() => {});
-      return;
-    }
-    const id = setTimeout(() => api.resizeWindow(200).catch(() => {}), 220);
-    return () => clearTimeout(id);
-  }, [isCollapsed]);
 
 
 const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
