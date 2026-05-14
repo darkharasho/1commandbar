@@ -118,12 +118,6 @@ export default function App() {
     return () => clearInterval(id);
   }, [opError]);
 
-  // The OS window stays at its max height; only the inner card animates.
-  // This avoids the jagged "stair-step" caused by the WM animating the window
-  // resize on a different clock than the CSS height transition.
-  const isCollapsed = !settingsOpen && view.kind !== "detail" && items.length === 0 && query === "" && !opError;
-
-
 const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
     if (view.kind === "detail") {
       const found = items.find((i) => i.id === view.id);
@@ -254,9 +248,7 @@ const targetItem = useMemo<{ id: string; url: string | null } | null>(() => {
     >
       <div
         className={
-          "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border overflow-hidden flex flex-col " +
-          "transition-[height] duration-200 ease-in-out " +
-          (isCollapsed ? "h-[58px]" : "h-[360px]")
+          "mx-auto w-full bg-bar-bg rounded-xl border border-bar-border overflow-hidden flex flex-col h-[360px]"
         }
       >
         {settingsOpen ? (
